@@ -2,9 +2,11 @@
   "name": "acethletics-server",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "npx nodemon /server.js",
+    "start": "node /server.js"
   },
   "keywords": [],
   "author": "",
@@ -13,6 +15,7 @@
     "axios": "^1.7.7",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
     "dotenv-flow": "^4.1.0",
     "express": "^4.21.1",
     "joi": "^17.13.3",
@@ -24,9 +27,11 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.14.0",
     "eslint": "^9.14.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",
+    "globals": "^15.12.0",
     "prettier": "^3.3.3"
   }
 }
