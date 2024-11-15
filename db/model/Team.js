@@ -1,0 +1,27 @@
+const mongoose = require('mongoose');
+
+const TeamSchema = new mongoose.Schema(
+  {
+    team_name: {
+      type: String,
+      unique: true,
+      required: true,
+      trim: true,
+      index: true,
+    },
+    players: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Player',
+      },
+    ],
+  },
+  { timestamps: true }
+);
+
+// Index
+TeamSchema.index({ team_name: 1 });
+
+const Team = mongoose.model('Team', TeamSchema);
+
+module.exports = Team;

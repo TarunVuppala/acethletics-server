@@ -1,0 +1,88 @@
+const ballOutcomes = Object.freeze({
+  dot: Object.freeze({
+    runs: 0,
+    extras: 0,
+    is_wicket: false,
+    description: 'No runs scored',
+    ball_counts: true,
+  }),
+  single: Object.freeze({
+    runs: 1,
+    extras: 0,
+    is_wicket: false,
+    description: 'One run scored',
+    ball_counts: true,
+  }),
+  double: Object.freeze({
+    runs: 2,
+    extras: 0,
+    is_wicket: false,
+    description: 'Two runs scored',
+    ball_counts: true,
+  }),
+  triple: Object.freeze({
+    runs: 3,
+    extras: 0,
+    is_wicket: false,
+    description: 'Three runs scored',
+    ball_counts: true,
+  }),
+  four: Object.freeze({
+    runs: 4,
+    extras: 0,
+    is_wicket: false,
+    description: 'Boundary scored',
+    ball_counts: true,
+  }),
+  six: Object.freeze({
+    runs: 6,
+    extras: 0,
+    is_wicket: false,
+    description: 'Six runs scored',
+    ball_counts: true,
+  }),
+  wicket: Object.freeze({
+    runs: 0,
+    extras: 0,
+    is_wicket: true,
+    description: 'Player is out',
+    ball_counts: true,
+  }),
+  wide: Object.freeze({
+    runs: 0,
+    extras: 1,
+    is_wicket: false,
+    description: 'Wide ball',
+    ball_counts: false,
+  }),
+  noball: Object.freeze({
+    runs: 0,
+    extras: 1,
+    is_wicket: false,
+    description: 'No ball',
+    ball_counts: false,
+  }),
+  free_hit: Object.freeze({
+    runs: 0,
+    extras: 0,
+    is_wicket: false,
+    description: 'Free hit awarded',
+    ball_counts: false,
+  }),
+  bye: Object.freeze({
+    runs: 1,
+    extras: 1,
+    is_wicket: false,
+    description: 'Bye run',
+    ball_counts: true,
+  }),
+  leg_bye: Object.freeze({
+    runs: 1,
+    extras: 1,
+    is_wicket: false,
+    description: 'Leg bye run',
+    ball_counts: true,
+  }),
+});
+
+export default ballOutcomes;
