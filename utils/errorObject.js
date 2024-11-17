@@ -1,0 +1,32 @@
+import responseMessage from '../constant/responseMessage';
+import config from '../config/config';
+import { EApplicationEnvironment } from '../constant/application';
+import logger from './logger';
+
+export default (err, req, errorStatusCode = 500) => {
+    const errorObj = {
+        success: false,
+        statusCode: errorStatusCode,
+        request: {
+            ip: req.ip || null,
+            method: req.method,
+            url: req.originalUrl,
+        },
+        message: err instanceof Error ? err.message || responseMessage.SOMETHING_WENT_WRONG : responseMessage.SOMETHING_WENT_WRONG,
+        data: err.data || null,
+        trace: err instanceof Error ? { error: err.stack } : null,
+    };
+
+    // Log
+    logger.error(`CONTROLLER_ERROR`, {
+        meta: errorObj,
+    });
+
+    // Production Environment Check
+    if (config.ENV === EApplicationEnvironment.PRODUCTION) {
+        delete errorObj.request.ip;
+        delete errorObj.trace;
+    }
+
+    return errorObj;
+};
