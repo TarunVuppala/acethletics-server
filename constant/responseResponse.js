@@ -1,4 +1,4 @@
-export default {
+module.exports = {
     // Success Messages
     SUCCESS: (operation) => `The ${operation} operation has been successful.`,
     CREATED: (entity) => `${entity} has been successfully created.`,

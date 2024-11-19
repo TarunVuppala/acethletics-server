@@ -1,8 +1,8 @@
-import config from '../config/config';
-import { EApplicationEnvironment } from '../constant/application';
-import logger from './logger';
+const config = require('../config/config');
+const { EApplicationEnvironment } = require('../constant/application');
+const logger = require('./logger');
 
-export default (req, res, responseStatusCode, responseMessage, data = null) => {
+module.exports = (req, res, responseStatusCode, responseMessage, data = null) => {
     const response = {
         success: true,
         statusCode: responseStatusCode,

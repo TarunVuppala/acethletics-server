@@ -1,9 +1,10 @@
-import util from 'util';
-import path from 'path';
-import { createLogger, format, transports } from 'winston';
-import { red, blue, yellow, green, magenta } from 'colorette';
+const util = require('util');
+const path = require('path');
+const { createLogger, format, transports } = require('winston');
+const { red, blue, yellow, green, magenta } = require('colorette');
 
-import config from '../config/config';
+const config = require('../config/config');
+const EApplicationEnvironment = require('../constant/application');
 
 const colorizeLevel = (level) => {
     switch (level) {
@@ -36,7 +37,7 @@ const consoleLogFormat = format.printf((info) => {
 });
 
 const consoleTransport = () => {
-    if (config.ENV === 'DEVELOPMENT') {
+    if (config.ENV === EApplicationEnvironment.DEVELOPMENT) {
         return [
             new transports.Console({
                 level: 'info',
@@ -78,14 +79,14 @@ const fileLogFormat = format.printf((info) => {
 const fileTransport = () => {
     return [
         new transports.File({
-            filename: path.join(__dirname, '../', '../', 'logs', `${config.ENV}.log`),
+            filename: path.join(__dirname, '../', 'logs', `${config.ENV}.log`),
             level: 'info',
             format: format.combine(format.timestamp(), fileLogFormat),
         }),
     ];
 };
 
-export default createLogger({
+module.exports = createLogger({
     defaultMeta: {
         meta: {},
     },

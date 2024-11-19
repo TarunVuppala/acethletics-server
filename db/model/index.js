@@ -1,13 +1,13 @@
-import Admin from './Admin';
-import Player from './Player';
-import Team from './Team';
-import Tournament from './Tournament';
-import Match from './Match';
-import Status from './Status';
-import BallOutcome from './BallOutcome';
-import Score from './Score';
+const Admin = require('./Admin');
+const Player = require('./Player');
+const Team = require('./Team');
+const Tournament = require('./Tournament');
+const Match = require('./Match');
+const Status = require('./Status');
+const BallOutcome = require('./BallOutcome');
+const Score = require('./Score');
 
-export default {
+module.exports = {
     Admin,
     Player,
     Team,

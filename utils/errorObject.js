@@ -1,9 +1,9 @@
-import responseMessage from '../constant/responseMessage';
-import config from '../config/config';
-import { EApplicationEnvironment } from '../constant/application';
-import logger from './logger';
+const responseMessage = require('../constant/responseMessage');
+const config = require('../config/config');
+const { EApplicationEnvironment } = require('../constant/application');
+const logger = require('./logger');
 
-export default (err, req, errorStatusCode = 500) => {
+module.exports = (err, req, errorStatusCode = 500) => {
     const errorObj = {
         success: false,
         statusCode: errorStatusCode,

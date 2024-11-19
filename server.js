@@ -1,10 +1,15 @@
-import http from 'http';
-import app from './app.js';
-import config from './config/config.js';
+const http = require('http');
+const app = require('./app');
+const config = require('./config/config');
+const logger = require('./utils/logger');
 
 const PORT = config.PORT;
 const server = http.createServer(app);
 
 server.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    logger.info("Server Started", {
+        PORT,
+        ENV: config.ENV,
+        LINK: `http://localhost:${PORT}`,
+    })
 });

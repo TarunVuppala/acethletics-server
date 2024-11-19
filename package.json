@@ -2,11 +2,9 @@
   "name": "acethletics-server",
   "version": "1.0.0",
   "description": "",
-  "type": "module",
-  "main": "server.js",
   "scripts": {
-    "dev": "npx nodemon /server.js",
-    "start": "node /server.js"
+    "dev": "cross-env NODE_ENV=development nodemon server.js",
+    "start": "cross-env NODE_ENV=production node /server.js"
   },
   "keywords": [],
   "author": "",
@@ -23,11 +21,14 @@
     "lodash": "^4.17.21",
     "mongoose": "^8.8.1",
     "mongoose-autopopulate": "^1.1.0",
+    "path": "^0.12.7",
     "pm2": "^5.4.3",
+    "util": "^0.12.5",
     "winston": "^3.17.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",
+    "colorette": "^2.0.20",
     "eslint": "^9.14.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.2.1",

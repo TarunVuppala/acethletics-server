@@ -85,4 +85,4 @@ const ballOutcomes = Object.freeze({
   }),
 });
 
-export default ballOutcomes;
+module.exports = ballOutcomes;

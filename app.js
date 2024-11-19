@@ -1,10 +1,13 @@
-import express from 'express';
+const express = require('express');
+const logger = require('./utils/logger');
 
 const app = express();
 
 app.use(express.json());
 
 app.get('/', (req, res) => {
+    console.log('abc')
+    logger.info('abv')
     res.status(200).json({ message: 'Welcome to the API!' });
 });
 
@@ -13,8 +16,8 @@ app.use((req, res) => {
 });
 
 app.use((err, req, res, next) => {
-    console.error(err.stack);
+    logger.error(err);
     res.status(500).json({ error: 'Something went wrong!' });
 });
 
-export default app;
+module.exports = app;
