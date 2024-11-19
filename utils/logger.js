@@ -2,7 +2,6 @@ const util = require('util');
 const path = require('path');
 const { createLogger, format, transports } = require('winston');
 const { red, blue, yellow, green, magenta } = require('colorette');
-
 const config = require('../config/config');
 const EApplicationEnvironment = require('../constant/application');
 
@@ -20,20 +19,29 @@ const colorizeLevel = (level) => {
 };
 
 const consoleLogFormat = format.printf((info) => {
-    const { level, message, timestamp, meta = {} } = info;
-
+    const { level, message, timestamp, metadata } = info;
+    
     const customLevel = colorizeLevel(level.toUpperCase());
     const customTimestamp = green(timestamp);
 
-    const customMeta = util.inspect(meta, {
-        showHidden: false,
-        depth: null,
-        colors: true,
-    });
+    const metaData = metadata && Object.keys(metadata).length
+        ? `${JSON.stringify(metadata, null, 2)}\n----`
+        : '';
 
-    const customLog = `${customLevel} [${customTimestamp}] ${message}\n${magenta('META')} ${customMeta}\n`;
+    return `----\n${customLevel} [${customTimestamp}] ${message}\n${magenta('META')} ${metaData}`;
+});
 
-    return customLog;
+const fileLogFormat = format.printf((info) => {
+    const { level, message, timestamp, metadata } = info;
+
+    const logData = {
+        level: level.toUpperCase(),
+        message,
+        timestamp,
+        ...metadata, 
+    };
+
+    return JSON.stringify(logData, null, 4);
 });
 
 const consoleTransport = () => {
@@ -41,7 +49,11 @@ const consoleTransport = () => {
         return [
             new transports.Console({
                 level: 'info',
-                format: format.combine(format.timestamp(), consoleLogFormat),
+                format: format.combine(
+                    format.timestamp(),
+                    format.metadata({ fillExcept: ['message', 'level', 'timestamp'] }),
+                    consoleLogFormat
+                ),
             }),
         ];
     }
@@ -49,46 +61,20 @@ const consoleTransport = () => {
     return [];
 };
 
-const fileLogFormat = format.printf((info) => {
-    const { level, message, timestamp, meta = {} } = info;
-
-    const logMeta = {};
-
-    for (const [key, value] of Object.entries(meta)) {
-        if (value instanceof Error) {
-            logMeta[key] = {
-                name: value.name,
-                message: value.message,
-                trace: value.stack || '',
-            };
-        } else {
-            logMeta[key] = value;
-        }
-    }
-
-    const logData = {
-        level: level.toUpperCase(),
-        message,
-        timestamp,
-        meta: logMeta,
-    };
-
-    return JSON.stringify(logData, null, 4);
-});
-
 const fileTransport = () => {
     return [
         new transports.File({
             filename: path.join(__dirname, '../', 'logs', `${config.ENV}.log`),
             level: 'info',
-            format: format.combine(format.timestamp(), fileLogFormat),
+            format: format.combine(
+                format.timestamp(),
+                format.metadata({ fillExcept: ['message', 'level', 'timestamp'] }),
+                fileLogFormat
+            ),
         }),
     ];
 };
 
 module.exports = createLogger({
-    defaultMeta: {
-        meta: {},
-    },
     transports: [...fileTransport(), ...consoleTransport()],
 });

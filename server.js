@@ -7,9 +7,8 @@ const PORT = config.PORT;
 const server = http.createServer(app);
 
 server.listen(PORT, () => {
-    logger.info("Server Started", {
-        PORT,
-        ENV: config.ENV,
-        LINK: `http://localhost:${PORT}`,
-    })
+    logger.info(`Server has started successfully`, {
+        port: PORT,
+        url: `http://localhost:${PORT}`
+    });
 });

@@ -1,4 +1,4 @@
-module.exports.EApplicationEnvironment = {
+module.exports = {
     PRODUCTION: 'production',
     DEVELOPMENT: 'development',
     TESTING: 'testing'
