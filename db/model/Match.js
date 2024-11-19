@@ -34,6 +34,10 @@ const MatchSchema = new mongoose.Schema(
             immutable: true,
             index: true,
         },
+        startTime:{
+            type: Date,
+            required: true
+        },
         location: {
             type: String,
             required: true,

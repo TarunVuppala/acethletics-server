@@ -30,13 +30,17 @@ const SkillSchema = new mongoose.Schema(
     { _id: false } 
 );
 
-const PlayerSchema = new mongoose.Schema(
+const CricketPlayerSchema = new mongoose.Schema(
     {
         player_name: {
             type: String,
             required: true,
             trim: true,
             index: true,
+        },
+        department:{
+            type: String,
+            required: true
         },
         team_id: {
             type: mongoose.Schema.Types.ObjectId,
@@ -51,6 +55,6 @@ const PlayerSchema = new mongoose.Schema(
 
 // PlayerSchema.index({ team_id: 1, player_name: 1 }, { unique: true });
 
-const Player = mongoose.model('Player', PlayerSchema);
+const Player = mongoose.model('CricketPlayer', CricketPlayerSchema);
 
 module.exports = Player;
