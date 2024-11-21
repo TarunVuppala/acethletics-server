@@ -50,14 +50,20 @@ export const adminLogout = async (req, res, next) => {
 export const adminResgistration = async (req, res, next) => {
     try {
         const { username, password, email, role } = req.body;
+
         if (!username || !password || !email) {
             httpError(next, new Error(responseMessage.MISSING_FIELDS), req, 400);
             return;
         }
 
+        if (req.user.role !== 'super_admin') {
+            httpError(next, new Error(responseMessage.UNAUTHORIZED), req, 401);
+            return;
+        }
+
         const exists = await Admin.findOne({ email });
         if (exists) {
-            httpError(next, new Error(responseMessage.RESOURCE_ALREADY_EXISTS('admin')), req, 400);
+            httpError(next, new Error(responseMessage.RESOURCE_ALREADY_EXISTS('Admin')), req, 400);
             return;
         }
 
@@ -67,8 +73,8 @@ export const adminResgistration = async (req, res, next) => {
             email,
             role
         });
-        
-        httpResponse(req, res, 200, responseMessage.REGISTRATION_SUCCESS, {
+
+        httpResponse(req, res, 200, responseMessage.USER_CREATED, {
             admin: {
                 username: admin.username,
             },

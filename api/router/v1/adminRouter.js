@@ -10,7 +10,7 @@ router.post('/login', adminLogin);
 
 router.post('/logout', adminLogout);
 
-router.post('/register', adminResgistration);
+router.post('/register', adminAuth, adminResgistration);
 
 router.get('/', adminAuth, (req, res) => {
     httpResponse(req, res, 200, 'success', { message: "Welcome!!" });

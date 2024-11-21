@@ -12,12 +12,12 @@ export default (req, res, responseStatusCode, responseMessage, data = null) => {
             url: req.originalUrl,
         },
         message: responseMessage,
-        ...data,
+        data,
     };
 
     // Log the response
     logger.info(`CONTROLLER_RESPONSE`, {
-        meta: response,
+        ...response,
     });
 
     // Remove sensitive information in production
