@@ -1,8 +1,8 @@
-const dotenv = require('dotenv-flow');
+import dotenv from 'dotenv-flow';
 
 dotenv.config();
 
-module.exports = {
+export default {
     ENV: process.env.NODE_ENV,
     PORT: process.env.PORT,
     JWT_SECRET: process.env.JWT_SECRET,

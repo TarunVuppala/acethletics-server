@@ -1,10 +1,15 @@
-const util = require('util');
-const path = require('path');
-const { createLogger, format, transports } = require('winston');
-const { red, blue, yellow, green, magenta } = require('colorette');
-const config = require('../config/config');
-const EApplicationEnvironment = require('../constant/application');
+import { fileURLToPath } from 'url';
+import path from 'path';
+import { createLogger, format, transports } from 'winston';
+import { red, blue, yellow, green, magenta } from 'colorette';
+import config from '../config/config.js';
+import EApplicationEnvironment from '../constant/application.js';
 
+// Define __filename and __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Function to colorize log levels
 const colorizeLevel = (level) => {
     switch (level) {
         case 'ERROR':
@@ -18,9 +23,10 @@ const colorizeLevel = (level) => {
     }
 };
 
+// Console log format
 const consoleLogFormat = format.printf((info) => {
     const { level, message, timestamp, metadata } = info;
-    
+
     const customLevel = colorizeLevel(level.toUpperCase());
     const customTimestamp = green(timestamp);
 
@@ -31,6 +37,7 @@ const consoleLogFormat = format.printf((info) => {
     return `----\n${customLevel} [${customTimestamp}] ${message}\n${magenta('META')} ${metaData}`;
 });
 
+// File log format
 const fileLogFormat = format.printf((info) => {
     const { level, message, timestamp, metadata } = info;
 
@@ -38,12 +45,13 @@ const fileLogFormat = format.printf((info) => {
         level: level.toUpperCase(),
         message,
         timestamp,
-        ...metadata, 
+        metadata,
     };
 
     return JSON.stringify(logData, null, 4);
 });
 
+// Console transport for development
 const consoleTransport = () => {
     if (config.ENV === EApplicationEnvironment.DEVELOPMENT) {
         return [
@@ -61,6 +69,7 @@ const consoleTransport = () => {
     return [];
 };
 
+// File transport for logging to files
 const fileTransport = () => {
     return [
         new transports.File({
@@ -75,6 +84,7 @@ const fileTransport = () => {
     ];
 };
 
-module.exports = createLogger({
+// Combine transports and export logger
+export default createLogger({
     transports: [...fileTransport(), ...consoleTransport()],
 });

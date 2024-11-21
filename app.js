@@ -1,23 +1,32 @@
-const express = require('express');
-const logger = require('./utils/logger');
+import express from 'express';
+import cokkieParser from 'cookie-parser';
+
+import httpResponse from './utils/httpResponse.js';
+import responseMessage from './constant/responseMessage.js';
+import globalErrorHandler from './middleware/globalErrorHandler.js';
+import httpError from './utils/httpError.js';
+
+import router_v1 from './api/router/v1/index.js';
 
 const app = express();
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cokkieParser());
+app.use('/api/v1', router_v1);
 
 app.get('/', (req, res) => {
-    console.log('abc')
-    logger.info('abv')
-    res.status(200).json({ message: 'Welcome to the API!' });
+    httpResponse(req, res, 200, responseMessage.DEFAULT_SUCCESS, { message: "Welcome!!" });
 });
 
-app.use((req, res) => {
-    res.status(404).json({ error: 'Route not found' });
-});
+app.use((req, res, next) => {
+    try {
+        throw new Error(responseMessage.NOT_FOUND('route'));
+    } catch (err) {
+        httpError(next, err, req, 404)
+    }
+})
 
-app.use((err, req, res, next) => {
-    logger.error(err);
-    res.status(500).json({ error: 'Something went wrong!' });
-});
+app.use(globalErrorHandler);
 
-module.exports = app;
+export default app;

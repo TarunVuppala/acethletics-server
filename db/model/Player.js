@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const SkillSchema = new mongoose.Schema(
     {
@@ -57,4 +57,4 @@ const CricketPlayerSchema = new mongoose.Schema(
 
 const Player = mongoose.model('CricketPlayer', CricketPlayerSchema);
 
-module.exports = Player;
+export default Player;

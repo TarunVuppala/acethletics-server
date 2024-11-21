@@ -1,5 +1,5 @@
 {
-    "ext": ".js",
+    "ext": "*.js",
     "ignore": [
         "node_modules"
     ]

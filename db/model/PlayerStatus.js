@@ -1,4 +1,5 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
+import mongooseAutopopulate from 'mongoose-autopopulate';
 
 const StatusSchema = new mongoose.Schema(
   {
@@ -55,8 +56,8 @@ StatusSchema.index(
 );
 
 // autopopulate plugin
-StatusSchema.plugin(require('mongoose-autopopulate'));
+StatusSchema.plugin(mongooseAutopopulate);
 
 const Status = mongoose.model('Status', StatusSchema);
 
-module.exports = Status;
+export default Status;

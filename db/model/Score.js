@@ -1,4 +1,5 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
+import mongooseAutopopulate from 'mongoose-autopopulate';
 
 const ExtrasSchema = new mongoose.Schema(
     {
@@ -66,8 +67,8 @@ const ScoreSchema = new mongoose.Schema(
 ScoreSchema.index({ match_id: 1, innings_number: 1 }, { unique: true });
 
 // autopopulate plugin
-ScoreSchema.plugin(require('mongoose-autopopulate'));
+ScoreSchema.plugin(mongooseAutopopulate);
 
 const Score = mongoose.model('Score', ScoreSchema);
 
-module.exports = Score;
+export default Score;

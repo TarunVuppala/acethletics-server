@@ -1,6 +1,6 @@
-const errorObject = require('./errorObject');
+import errorObject from './errorObject.js';
 
-module.exports = (next, err, req, errorStatusCode = 500) => {
+export default (next, err, req, errorStatusCode = 500) => {
     const errorObj = errorObject(err, req, errorStatusCode);
     return next(errorObj);
 };

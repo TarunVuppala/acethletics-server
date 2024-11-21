@@ -1,4 +1,5 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
+import mongooseAutopopulate from 'mongoose-autopopulate';
 
 const StatsSchema = new mongoose.Schema(
     {
@@ -104,8 +105,8 @@ const TournamentSchema = new mongoose.Schema(
 TournamentSchema.index({ name: 1 });
 
 // autopopulate plugin
-TournamentSchema.plugin(require('mongoose-autopopulate'));
+TournamentSchema.plugin(mongooseAutopopulate);
 
 const Tournament = mongoose.model('Tournament', TournamentSchema);
 
-module.exports = Tournament;
+export default Tournament;

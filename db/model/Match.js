@@ -1,4 +1,5 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
+import mongooseAutopopulate from 'mongoose-autopopulate';
 
 const InningsSchema = new mongoose.Schema(
     {
@@ -96,8 +97,8 @@ const MatchSchema = new mongoose.Schema(
 MatchSchema.index({ tournament_id: 1, isActive: 1 });
 
 // autopopulate plugin
-MatchSchema.plugin(require('mongoose-autopopulate'));
+MatchSchema.plugin(mongooseAutopopulate);
 
 const Match = mongoose.model('Match', MatchSchema);
 
-module.exports = Match;
+export default Match;

@@ -1,6 +1,6 @@
-const mongoose = require('mongoose');
-const config = require('../config/config');
-const logger = require('../utils/logger');
+import mongoose from 'mongoose';
+import config from '../config/config.js';
+import logger from '../utils/logger.js';
 
 const mongoURI = config.MONGO_URI;
 
@@ -14,7 +14,7 @@ const options = {
     useUnifiedTopology: true,
 };
 
-function connectToDatabase() {
+export const connectToDatabase = () => {
     mongoose.connect(mongoURI, options);
 
     mongoose.connection.on('connected', () => {
@@ -38,5 +38,3 @@ function connectToDatabase() {
         });
     });
 }
-
-module.exports = connectToDatabase;

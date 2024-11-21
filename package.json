@@ -2,6 +2,7 @@
   "name": "acethletics-server",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon server.js",
     "start": "cross-env NODE_ENV=production node /server.js"

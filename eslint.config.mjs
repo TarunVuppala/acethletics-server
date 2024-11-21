@@ -1,5 +1,5 @@
-const eslint = require('@eslint/js');
-const eslintConfigPrettier = require('eslint-config-prettier');
+import eslint from '@eslint/js';
+import eslintConfigPrettier from 'eslint-config-prettier';
 
 export default {
   env: {
