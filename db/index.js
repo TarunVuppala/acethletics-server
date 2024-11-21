@@ -18,7 +18,7 @@ export const connectToDatabase = () => {
     mongoose.connect(mongoURI, options);
 
     mongoose.connection.on('connected', () => {
-        logger.info('Mongoose connected to ', { mongoURI });
+        logger.info(`MongoDB connected`);
     });
 
     mongoose.connection.on('error', (err) => {

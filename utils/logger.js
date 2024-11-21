@@ -31,10 +31,10 @@ const consoleLogFormat = format.printf((info) => {
     const customTimestamp = green(timestamp);
 
     const metaData = metadata && Object.keys(metadata).length
-        ? `${JSON.stringify(metadata, null, 2)}\n----`
+        ? `${JSON.stringify(metadata, null, 2)}`
         : '';
 
-    return `----\n${customLevel} [${customTimestamp}] ${message}\n${magenta('META')} ${metaData}`;
+    return `----\n${customLevel} [${customTimestamp}] ${message}\n${magenta('META')} ${metaData}\n----`;
 });
 
 // File log format
