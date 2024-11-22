@@ -4,16 +4,17 @@ const AdminSchema = new mongoose.Schema(
     {
         username: {
             type: String,
-            unique: true,
-            required: true,
+            unique: [true, 'Username already exists'],
+            required: [true, 'Username is required'],
             trim: true,
             index: true,
         },
         password: { type: String, required: true },
         email: {
             type: String,
-            unique: true,
-            required: true,
+            unique: [true, 'Email already exists'],
+            required: [true, 'Email is required'],
+            trim: true,
             lowercase: true,
             index: true,
         },

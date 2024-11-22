@@ -7,6 +7,7 @@ export default {
     FETCHED: (entity) => `${entity} has been successfully fetched.`,
     LOGGED_IN: `Login was successful.`,
     LOGGED_OUT: `You have been successfully logged out.`,
+    MISSING_FILEDS: `Missing required fields.`,
 
     // Error Messages
     SOMETHING_WENT_WRONG: `Something went wrong!`,
