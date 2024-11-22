@@ -55,7 +55,7 @@ import logger from './logger.js';
 export default (err, req, errorStatusCode = 500) => {
     const errorObj = {
         success: false, // Indicates the operation failed
-        statusCode: errorStatusCode, // HTTP status code for the error
+        statusCode: err instanceof Error ? err.status || errorStatusCode : errorStatusCode, // HTTP status code for the error
         request: {
             ip: req.ip || null, // Client IP address
             method: req.method, // HTTP method (e.g., GET, POST)
@@ -68,7 +68,7 @@ export default (err, req, errorStatusCode = 500) => {
 
     // Log the error
     logger.error(`CONTROLLER_ERROR`, {
-        meta: errorObj, // Include the error object in the log
+        ...errorObj, // Include the error object in the log
     });
 
     // Remove sensitive information in production

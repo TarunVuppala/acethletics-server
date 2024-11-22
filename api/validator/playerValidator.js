@@ -1,7 +1,7 @@
 /**
  * Player validation schema using Joi.
  * 
- * This schema validates player data, ensuring the roles and styles adhere to predefined constraints.
+ * This schema validates player skill data, ensuring the roles and styles adhere to predefined constraints.
  * It enforces role-specific requirements for batting and bowling styles.
  * 
  * @module playerValidator
@@ -39,7 +39,7 @@ const allowedBowlingStyles = [
  * };
  * const { error } = playerValidator.validate(player);
  * if (error) {
- *   console.error(error.message);
+ *   logger.error(error.message);
  * }
  */
 const playerValidator = Joi.object({

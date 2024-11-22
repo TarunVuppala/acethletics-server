@@ -15,7 +15,7 @@ const router = express.Router();
 /**
  * Route to log in as an admin.
  *
- * @name POST /api/admin/login
+ * @name POST /api/v1/admin/login
  * @function
  * @memberof module:AdminRouter
  * @param {Object} req - The request object containing login credentials in the body.
@@ -25,7 +25,7 @@ const router = express.Router();
  * @param {Function} next - Middleware function for error handling.
  * @description Logs in an admin by validating the provided credentials and generating a token.
  * @example
- * POST /api/admin/login
+ * POST /api/v1/admin/login
  * {
  *   "username": "admin123",
  *   "password": "securepassword"
@@ -46,7 +46,7 @@ router.post('/login', adminLogin);
 /**
  * Route to log out an admin.
  *
- * @name POST /api/admin/logout
+ * @name POST /api/v1/admin/logout
  * @function
  * @memberof module:AdminRouter
  * @param {Object} req - The request object.
@@ -54,7 +54,7 @@ router.post('/login', adminLogin);
  * @param {Function} next - Middleware function for error handling.
  * @description Logs out an admin by clearing the authentication token from cookies.
  * @example
- * POST /api/admin/logout
+ * POST /api/v1/admin/logout
  * @response 200
  * {
  *   "message": "Logout successful"
@@ -65,7 +65,7 @@ router.post('/logout', adminLogout);
 /**
  * Route to register a new admin.
  *
- * @name POST /api/admin/register
+ * @name POST /api/v1/admin/register
  * @function
  * @memberof module:AdminRouter
  * @param {Object} req - The request object containing new admin details in the body.
@@ -79,7 +79,7 @@ router.post('/logout', adminLogout);
  * @param {Function} next - Middleware function for error handling.
  * @description Registers a new admin. Only accessible to users with the `super_admin` role.
  * @example
- * POST /api/admin/register
+ * POST /api/v1/admin/register
  * {
  *   "username": "newAdmin",
  *   "password": "securePassword",
@@ -104,14 +104,14 @@ router.post('/register', adminAuth, adminResgistration);
 /**
  * Default route for testing admin authentication.
  *
- * @name GET /api/admin/
+ * @name GET /api/v1/admin/
  * @function
  * @memberof module:AdminRouter
  * @param {Object} req - The request object.
  * @param {Object} res - The response object.
  * @description Returns a success message if the admin is authenticated.
  * @example
- * GET /api/admin/
+ * GET /api/v1/admin/
  * @response 200
  * {
  *   "message": "success",

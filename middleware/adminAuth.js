@@ -1,10 +1,10 @@
 /**
  * Authentication Middleware.
  *
- * This middleware validates the user's authentication token, retrieves the user details from the token, 
+ * This middleware validates the admin's authentication token, retrieves the admin details from the token, 
  * and attaches them to the `req` object for further processing in protected routes.
  *
- * @module authMiddleware
+ * @module adminAuth
  */
 
 import { getUser } from '../utils/authToken.js';
@@ -34,7 +34,7 @@ import logger from '../utils/logger.js';
  *
  * @throws {401 Unauthorized} If the token is missing or invalid.
  */
-function auth(req, res, next) {
+function adminAuth(req, res, next) {
     // Retrieve the token from cookies
     const token = getCookie(req, 'token'); // Specify the cookie name explicitly
 
@@ -59,4 +59,4 @@ function auth(req, res, next) {
     }
 }
 
-export default auth;
+export default adminAuth;

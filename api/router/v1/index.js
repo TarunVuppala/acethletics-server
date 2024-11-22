@@ -21,9 +21,9 @@ const router = express.Router();
  * 
  * @see module:AdminRouter
  * @example
- * - POST /api/admin/login: Log in as an admin.
- * - POST /api/admin/logout: Log out as an admin.
- * - POST /api/admin/register: Register a new admin.
+ * - POST /api/v1/admin/login: Log in as an admin.
+ * - POST /api/v1/admin/logout: Log out as an admin.
+ * - POST /api/v1/admin/register: Register a new admin.
  */
 router.use('/admin', adminRouter);
 
@@ -34,7 +34,7 @@ router.use('/admin', adminRouter);
  * 
  * @see module:PlayerRouter
  * @example
- * - POST /api/player: Add a new player.
+ * - POST /api/v1/player: Add a new player.
  */
 router.use('/player', playerRouter);
 

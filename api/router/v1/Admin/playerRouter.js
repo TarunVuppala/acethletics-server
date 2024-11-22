@@ -14,7 +14,7 @@ const router = express.Router();
 /**
  * Route to add a new player.
  *
- * @name POST /api/admin/players
+ * @name POST /api/v1/admin/players
  * @function
  * @memberof module:PlayerRouter
  * @param {Object} req - The request object containing player details in the body.

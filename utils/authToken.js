@@ -27,7 +27,7 @@ import logger from '../utils/logger.js';
  * import { setToken } from './utils/authToken.js';
  *
  * const token = setToken({ id: 1, username: 'admin', role: 'admin' });
- * console.log(token); // Prints the generated JWT token
+ * logger.info(token); // Prints the generated JWT token
  *
  * @returns {string|null} A JWT token string or `null` if an error occurs.
  */
@@ -58,9 +58,9 @@ const setToken = (payload) => {
  *
  * const payload = getUser(token);
  * if (payload) {
- *   console.log('User payload:', payload);
+ *   logger.info('User payload:', payload);
  * } else {
- *   console.log('Invalid or expired token');
+ *   logger.error('Invalid or expired token');
  * }
  *
  * @returns {Object|null} Decoded JWT payload or `null` if verification fails.
