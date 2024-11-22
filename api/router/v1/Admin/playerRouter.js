@@ -6,8 +6,7 @@
 
 import express from 'express';
 
-import adminAuth from '../../../../middleware/adminAuth.js';
-import { addPlayer, getPlayers } from '../../../controllers/Admin/playerController.js';
+import { addPlayer, deletePlayer, getPlayer, getPlayers, patchPlayer, putPlayer, transferPlayer } from '../../../controllers/Admin/playerController.js';
 
 const router = express.Router();
 
@@ -61,6 +60,101 @@ const router = express.Router();
  */
 router.post('/', addPlayer);
 
+
+/**
+ * @route GET /api/v1/players
+ * @description Fetches a list of all players.
+ * @access Public
+ * @example
+ * GET /api/v1/players
+ * 
+ * @response {JSON} Success Response
+ * {
+ *   "message": "Players fetched successfully",
+ *   "data": [ { "id": "123", "player_name": "John Doe", "department": "CSE" } ]
+ * }
+ */
 router.get('/', getPlayers);
+
+/**
+ * @route GET /api/v1/players/:id
+ * @description Fetches a single player's details by their ID.
+ * @access Public
+ * @example
+ * GET /api/v1/players/:id
+ * 
+ * @param {string} id - The ID of the player to fetch.
+ * 
+ * @response {JSON} Success Response
+ * {
+ *   "message": "Player fetched successfully",
+ *   "data": { "id": "123", "player_name": "John Doe", "department": "CSE" }
+ * }
+ */
+router.get('/:id', getPlayer);
+
+/**
+ * @route PUT /api/v1/players/:id
+ * @description Fully replaces a player's details with the provided data.
+ * @access Public
+ * @example
+ * PUT /api/v1/players/:id
+ * 
+ * @param {string} id - The ID of the player to update.
+ * 
+ * @request {JSON} Body
+ * {
+ *   "player_name": "Updated Name",
+ *   "department": "Updated Department"
+ * }
+ * 
+ * @response {JSON} Success Response
+ * {
+ *   "message": "Player updated successfully",
+ *   "data": { "name": "Updated Name", "department": "Updated Department" }
+ * }
+ */
+router.put('/:id', putPlayer);
+
+/**
+ * @route PATCH /api/v1/players/:id
+ * @description Partially updates a player's details.
+ * @access Public
+ * @example
+ * PATCH /api/v1/players/:id
+ * 
+ * @param {string} id - The ID of the player to update.
+ * 
+ * @request {JSON} Body
+ * {
+ *   "department": "Updated Department"
+ * }
+ * 
+ * @response {JSON} Success Response
+ * {
+ *   "message": "Player updated successfully",
+ *   "data": { "name": "Original Name", "department": "Updated Department" }
+ * }
+ */
+router.patch('/:id', patchPlayer);
+
+/**
+ * @route DELETE /api/v1/players/:id
+ * @description Deletes a player by their ID.
+ * @access Public
+ * @example
+ * DELETE /api/v1/players/:id
+ * 
+ * @param {string} id - The ID of the player to delete.
+ * 
+ * @response {JSON} Success Response
+ * {
+ *   "message": "Player deleted successfully",
+ *   "data": {}
+ * }
+ */
+router.delete('/:id', deletePlayer);
+
+router.patch('/:id/transfer/:teamId', transferPlayer);
 
 export default router;

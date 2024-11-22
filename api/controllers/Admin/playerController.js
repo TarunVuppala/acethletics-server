@@ -206,8 +206,337 @@ export const getPlayers = async (req, res, next) => {
             players
         });
     } catch (error) {
-        // Log the error and pass it to the error-handling middleware
-        logger.error("Error fetching players", { error });
+        httpError(next, error, req, 500);
+    }
+};
+
+/**
+ * Retrieves a player's details by ID.
+ *
+ * @async
+ * @function getPlayer
+ * @param {Object} req - The HTTP request object.
+ * @param {string} req.params.id - The ID of the player to retrieve.
+ * @param {Object} res - The HTTP response object.
+ * @param {Function} next - Middleware function for error handling.
+ *
+ * @description
+ * - Fetches a player's details from the database using their ID.
+ * - Handles cases where the player does not exist.
+ *
+ * @example
+ * GET /api/v1/players/:id
+ *
+ * @response {JSON} Success Response
+ * {
+ *   "message": "Player fetched successfully",
+ *   "data": {
+ *     "id": "12345",
+ *     "player_name": "John Doe",
+ *     "department": "Engineering"
+ *   }
+ * }
+ *
+ * @throws {404} If the player is not found.
+ * @throws {500} For database or other unexpected errors.
+ */
+export const getPlayer = async (req, res, next) => {
+    try {
+        // Validate player ID
+        const playerId = req.params.id;
+        if (!playerId) {
+            return httpError(next, new Error("Player ID is required"), req, 400);
+        }
+
+        // Fetch the player by ID
+        const player = await CricketPlayer.findById(playerId)
+            .lean() // Converts the Mongoose document to a plain JS object
+            .exec();
+
+        // Handle player not found
+        if (!player) {
+            return httpError(next, new Error("Player not found"), req, 404);
+        }
+
+        // Respond with the player data
+        httpResponse(req, res, 200, responseMessage.FETCHED("Player"), player);
+    } catch (error) {
+        httpError(next, error, req, 500);
+    }
+};
+
+/**
+ * Replaces a player's details by ID.
+ *
+ * @async
+ * @function putPlayer
+ * @param {Object} req - The HTTP request object.
+ * @param {string} req.params.id - The ID of the player to update.
+ * @param {Object} req.body - The new player data to replace the existing data.
+ * @param {Object} res - The HTTP response object.
+ * @param {Function} next - Middleware function for error handling.
+ *
+ * @description
+ * - Replaces a player's details completely with the new data provided in the request body.
+ * - Validates the provided data and handles errors gracefully.
+ *
+ * @example
+ * PUT /api/v1/players/:id
+ * {
+ *   "player_name": "Updated Name",
+ *   "department": "Updated Department"
+ * }
+ *
+ * @response {JSON} Success Response
+ * {
+ *   "message": "Player updated successfully",
+ *   "data": {
+ *     "name": "Updated Name",
+ *     "department": "Updated Department"
+ *   }
+ * }
+ *
+ * @throws {404} If the player is not found.
+ * @throws {400} For validation or missing data errors.
+ * @throws {500} For database or other unexpected errors.
+ */
+export const putPlayer = async (req, res, next) => {
+    try {
+        // Validate player ID
+        const playerId = req.params.id;
+        if (!playerId) {
+            return httpError(next, new Error("Player ID is required"), req, 400);
+        }
+
+        // Ensure the request body is not empty
+        if (!Object.keys(req.body).length) {
+            return httpError(next, new Error("No data provided for update"), req, 400);
+        }
+
+        // Replace the player's details
+        const updatedPlayer = await CricketPlayer.findByIdAndUpdate(
+            playerId,
+            req.body,
+            {
+                new: true, // Return the updated document
+                runValidators: true, // Enforce schema validation
+            }
+        );
+
+        // Handle player not found
+        if (!updatedPlayer) {
+            return httpError(next, new Error("Player not found"), req, 404);
+        }
+
+        // Respond with the updated player data
+        httpResponse(req, res, 200, responseMessage.UPDATED("Player"), {
+            name: updatedPlayer.player_name,
+            department: updatedPlayer.department,
+        });
+    } catch (error) {
+        if (error instanceof mongoose.Error.ValidationError) {
+            return httpError(next, new Error("Validation error: Invalid data"), req, 400);
+        }
+        httpError(next, error, req, 500);
+    }
+};
+
+
+/**
+ * Partially updates a player's details.
+ *
+ * @async
+ * @function patchPlayer
+ * @param {Object} req - The HTTP request object.
+ * @param {string} req.params.id - The ID of the player to update.
+ * @param {Object} req.body - The partial player data to update.
+ * @param {Object} res - The HTTP response object.
+ * @param {Function} next - Middleware function for error handling.
+ *
+ * @description
+ * - Allows partial updates to a player's details.
+ * - Validates the `id` parameter and applies schema validation during the update.
+ * - Returns the updated player data if successful or appropriate error responses if not.
+ *
+ * @example
+ * PATCH /api/v1/players/:id
+ * {
+ *   "department": "Updated Department"
+ * }
+ *
+ * @response {JSON} Success Response
+ * {
+ *   "message": "Player updated successfully",
+ *   "data": {
+ *     "name": "Original Name",
+ *     "department": "Updated Department"
+ *   }
+ * }
+ *
+ * @throws {404} If the player is not found.
+ * @throws {500} For database or other unexpected errors.
+ */
+export const patchPlayer = async (req, res, next) => {
+    try {
+        const playerId = req.params.id;
+
+        // Validate player ID
+        if (!playerId) {
+            return httpError(next, new Error("Player ID is required"), req, 400);
+        }
+
+        // Ensure request body is not empty for a partial update
+        if (!Object.keys(req.body).length) {
+            return httpError(next, new Error("No fields provided for update"), req, 400);
+        }
+
+        // Find and partially update the player
+        const updatedPlayer = await CricketPlayer.findByIdAndUpdate(
+            playerId,
+            { $set: req.body }, // Use $set for partial updates
+            {
+                new: true, // Return the updated document
+                runValidators: true, // Enforce schema validation
+            }
+        );
+
+        // Check if the player exists
+        if (!updatedPlayer) {
+            return httpError(next, new Error("Player not found"), req, 404);
+        }
+
+        // Respond with the updated player details
+        httpResponse(req, res, 200, responseMessage.UPDATED("Player"), {
+            name: updatedPlayer.player_name,
+            department: updatedPlayer.department,
+        });
+    } catch (error) {
+        if (error instanceof mongoose.Error.ValidationError) {
+            return httpError(next, new Error("Validation error: Invalid data"), req, 400);
+        }
+        httpError(next, error, req, 500);
+    }
+};
+
+/**
+ * Deletes a player by ID.
+ *
+ * @async
+ * @function deletePlayer
+ * @param {Object} req - The HTTP request object.
+ * @param {string} req.params.id - The ID of the player to delete.
+ * @param {Object} res - The HTTP response object.
+ * @param {Function} next - Middleware function for error handling.
+ *
+ * @description
+ * - Deletes a player's record from the database by their ID.
+ * - Handles scenarios where the player is not found or the ID is missing.
+ *
+ * @example
+ * DELETE /api/v1/players/:id
+ *
+ * @response {JSON} Success Response
+ * {
+ *   "message": "Player deleted successfully",
+ *   "data": {}
+ * }
+ *
+ * @throws {400} If the player ID is missing.
+ * @throws {404} If the player is not found.
+ * @throws {500} For database or other unexpected errors.
+ */
+export const deletePlayer = async (req, res, next) => {
+    try {
+        const playerId = req.params.id;
+
+        // Validate that the player ID is provided
+        if (!playerId) {
+            return httpError(next, new Error("Player ID is required"), req, 400);
+        }
+
+        // Attempt to find and delete the player
+        const deletedPlayer = await CricketPlayer.findByIdAndDelete(playerId);
+
+        // Check if the player exists
+        if (!deletedPlayer) {
+            return httpError(next, new Error("Player not found"), req, 404);
+        }
+
+        // Respond with success message
+        httpResponse(req, res, 200, responseMessage.DELETED("Player"), {});
+    } catch (error) {
+        httpError(next, error, req, 500);
+    }
+};
+
+/**
+ * Transfers a player to a new team.
+ *
+ * @async
+ * @function transferPlayer
+ * @param {Object} req - The HTTP request object.
+ * @param {string} req.params.id - The ID of the player to transfer.
+ * @param {string} req.params.teamId - The ID of the new team.
+ * @param {Object} res - The HTTP response object.
+ * @param {Function} next - Middleware function for error handling.
+ *
+ * @description
+ * - Transfers a player to a new team by updating the `team` field of the player's document.
+ * - Validates that both `playerId` and `teamId` are provided.
+ * - Handles scenarios where the player does not exist or database errors occur.
+ *
+ * @example
+ * PATCH /api/v1/players/:id/transfer/:teamId
+ *
+ * @response {JSON} Success Response
+ * {
+ *   "message": "Player updated successfully",
+ *   "data": {
+ *     "player_name": "John Doe",
+ *     "current_team": "New Team ID"
+ *   }
+ * }
+ *
+ * @throws {400} If the player ID or team ID is missing.
+ * @throws {404} If the player is not found.
+ * @throws {500} For database or other unexpected errors.
+ */
+export const transferPlayer = async (req, res, next) => {
+    try {
+        const playerId = req.params.id;
+        const teamId = req.params.teamId;
+
+        // Validate that the player ID and team ID are provided
+        if (!playerId || !teamId) {
+            return httpError(
+                next,
+                new Error("Player ID and team ID are required"),
+                req,
+                400
+            );
+        }
+
+        // Find and update the player's team
+        const updatedPlayer = await CricketPlayer.findByIdAndUpdate(
+            playerId,
+            { team: teamId }, // Update the team field
+            {
+                new: true, // Return the updated document
+                runValidators: true, // Ensure validation rules are applied
+            }
+        );
+
+        // Check if the player exists
+        if (!updatedPlayer) {
+            return httpError(next, new Error("Player not found"), req, 404);
+        }
+
+        // Respond with success message and updated player details
+        httpResponse(req, res, 200, responseMessage.UPDATED("Player"), {
+            player_name: updatedPlayer.player_name,
+            current_team: updatedPlayer.team,
+        });
+    } catch (error) {
         httpError(next, error, req, 500);
     }
 };
