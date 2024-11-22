@@ -25,7 +25,7 @@ import { setCookie } from '../../../utils/cookieHandler.js';
  *         the password is incorrect, or an unexpected server error occurs.
  *
  * @example
- * POST /api/admin/login
+ * POST /api/v1/admin/login
  * {
  *   "username": "admin123",
  *   "password": "securepassword"
@@ -75,7 +75,7 @@ export const adminLogin = async (req, res, next) => {
         setCookie(res, 'token', token);
 
         // Respond with success and admin details
-        httpResponse(req, res, 200, responseMessage.LOGIN_SUCCESS, {
+        httpResponse(req, res, 201, responseMessage.LOGIN_SUCCESS, {
             admin: {
                 username: admin.username,
             },
@@ -123,7 +123,7 @@ export const adminLogin = async (req, res, next) => {
  * It sends a success response upon successful logout and handles any unexpected errors.
  *
  * @example
- * POST /api/admin/logout
+ * POST /api/v1/admin/logout
  *
  * @response 200
  * {
@@ -168,7 +168,7 @@ export const adminLogout = async (req, res, next) => {
  * checks for duplicate emails, and creates a new admin if all conditions are met.
  *
  * @example
- * POST /api/admin/register
+ * POST /api/v1/admin/register
  * {
  *   "username": "newAdmin",
  *   "password": "securePassword",

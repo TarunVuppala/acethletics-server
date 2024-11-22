@@ -27,7 +27,7 @@ import playerValidator from "../../validator/playerValidator.js";
  *         or the player already exists in the database.
  *
  * @example
- * POST /api/players
+ * POST /api/v1/players
  * {
  *   "player_name": "John Doe",
  *   "department": "CSE",
@@ -94,7 +94,7 @@ export const addPlayer = async (req, res, next) => {
         });
 
         // Respond with success
-        httpResponse(req, res, 200, responseMessage.USER_CREATED, {
+        httpResponse(req, res, 201, responseMessage.USER_CREATED, {
             player: {
                 player_name: player.player_name,
                 department: player.department,
