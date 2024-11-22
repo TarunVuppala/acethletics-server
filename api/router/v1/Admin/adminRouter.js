@@ -6,7 +6,7 @@
 
 import express from 'express';
 
-import { adminLogin, adminLogout, adminResgistration } from '../../../controllers/Admin/adminController.js';
+import { adminLogin, adminLogout, adminRegistration } from '../../../controllers/Admin/adminController.js';
 import adminAuth from '../../../../middleware/adminAuth.js';
 import httpResponse from '../../../../utils/httpResponse.js';
 
@@ -99,7 +99,7 @@ router.post('/logout', adminLogout);
  * @throws {401 Unauthorized} If the user is not a `super_admin`.
  * @throws {400 Bad Request} If required fields are missing or the email already exists.
  */
-router.post('/register', adminAuth, adminResgistration);
+router.post('/register', adminAuth, adminRegistration);
 
 /**
  * Default route for testing admin authentication.

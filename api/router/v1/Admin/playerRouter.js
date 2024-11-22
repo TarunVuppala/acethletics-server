@@ -7,7 +7,7 @@
 import express from 'express';
 
 import adminAuth from '../../../../middleware/adminAuth.js';
-import { addPlayer } from '../../../controllers/Admin/playerController.js';
+import { addPlayer, getPlayers } from '../../../controllers/Admin/playerController.js';
 
 const router = express.Router();
 
@@ -29,7 +29,7 @@ const router = express.Router();
  * @param {string} req.user.role - The role of the authenticated user.
  * @description Adds a new player to the database. Only accessible to authenticated admins.
  * @example
- * POST /api/admin/players
+ * POST /api/v1/admin/players
  * {
  *   "player_name": "John Doe",
  *   "department": "CSE",
@@ -59,6 +59,8 @@ const router = express.Router();
  * @throws {401 Unauthorized} If the admin is not authenticated.
  * @throws {400 Bad Request} If required fields are missing or validation fails.
  */
-router.post('/', adminAuth, addPlayer);
+router.post('/', addPlayer);
+
+router.get('/', getPlayers);
 
 export default router;

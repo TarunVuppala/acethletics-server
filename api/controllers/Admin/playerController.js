@@ -126,3 +126,88 @@ export const addPlayer = async (req, res, next) => {
         }
     }
 };
+
+/**
+ * Fetches a paginated list of players from the database.
+ *
+ * @async
+ * @function getPlayers
+ * @param {Object} req - The HTTP request object.
+ * @param {Object} req.query - The query parameters from the request.
+ * @param {string} [req.query.page='1'] - The page number for pagination (default: 1).
+ * @param {string} [req.query.rows='10'] - The number of rows per page (default: 10).
+ * @param {Object} res - The HTTP response object.
+ * @param {Function} next - The middleware function for error handling.
+ *
+ * @description
+ * This function retrieves players from the database with pagination. It validates the query parameters,
+ * calculates the number of players to skip for the requested page, and fetches the corresponding players.
+ * Metadata about the pagination is included in the response. In case of an error, it passes a standardized
+ * error object to the error-handling middleware.
+ *
+ * @example
+ * // Example API request
+ * GET /api/v1/players?page=2&rows=5
+ *
+ * @response {JSON}
+ * {
+ *   "success": true,
+ *   "statusCode": 200,
+ *   "message": "Players fetched successfully",
+ *   "data": {
+ *     "currentPage": 2,
+ *     "rowsPerPage": 5,
+ *     "players": [
+ *       { "player_name": "John Doe", "department": "CSE", "skill": { "roles": ["batsman"] } },
+ *       ...
+ *     ]
+ *   }
+ * }
+ *
+ * @throws {400} If the page or rows query parameters are invalid.
+ * @throws {500} If a server error occurs.
+ */
+export const getPlayers = async (req, res, next) => {
+    try {
+        const { page = '1', rows = '10' } = req.query;
+
+        // Validate and sanitize query parameters
+        const pageNumber = Math.max(Number(page), 1);
+        const rowsPerPage = Math.max(Number(rows), 1);
+
+        if (isNaN(pageNumber) || isNaN(rowsPerPage)) {
+            return httpError(next, new Error("Invalid page or rows parameter"), req, 400);
+        }
+
+        const skip = (pageNumber - 1) * rowsPerPage;
+
+        // Fetch total count of players and the requested page of players
+        const players = await CricketPlayer.find({})
+            .sort({ player_name: 1 })
+            .skip(skip)
+            .limit(rowsPerPage)
+            .select('player_name department skill.roles')
+            .lean()
+            .exec();
+
+        // Handle empty results
+        if (players.length === 0) {
+            return httpResponse(req, res, 200, "No players found", {
+                currentPage: pageNumber,
+                rowsPerPage,
+                players
+            });
+        }
+
+        // Send response with metadata and player data
+        httpResponse(req, res, 200, responseMessage.FETCHED("Players"), {
+            currentPage: pageNumber,
+            rowsPerPage,
+            players
+        });
+    } catch (error) {
+        // Log the error and pass it to the error-handling middleware
+        logger.error("Error fetching players", { error });
+        httpError(next, error, req, 500);
+    }
+};

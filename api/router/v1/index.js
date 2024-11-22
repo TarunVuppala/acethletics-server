@@ -11,6 +11,7 @@ import express from 'express';
 
 import adminRouter from './Admin/adminRouter.js';
 import playerRouter from './Admin/playerRouter.js';
+import adminAuth from '../../../middleware/adminAuth.js';
 
 const router = express.Router();
 
@@ -36,6 +37,6 @@ router.use('/admin', adminRouter);
  * @example
  * - POST /api/v1/player: Add a new player.
  */
-router.use('/player', playerRouter);
+router.use('/player', adminAuth, playerRouter);
 
 export default router;
