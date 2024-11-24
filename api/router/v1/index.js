@@ -11,6 +11,8 @@ import express from 'express';
 
 import adminRouter from './Admin/adminRouter.js';
 import playerRouter from './Admin/playerRouter.js';
+import teamRouter from './Admin/teamRouter.js';
+
 import adminAuth from '../../../middleware/adminAuth.js';
 
 const router = express.Router();
@@ -38,5 +40,7 @@ router.use('/admin', adminRouter);
  * - POST /api/v1/player: Add a new player.
  */
 router.use('/player', adminAuth, playerRouter);
+
+router.use('teams', adminAuth, teamRouter );
 
 export default router;
