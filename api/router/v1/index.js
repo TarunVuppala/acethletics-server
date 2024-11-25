@@ -12,6 +12,7 @@ import express from 'express';
 import adminRouter from './Admin/adminRouter.js';
 import playerRouter from './Admin/playerRouter.js';
 import teamRouter from './Admin/teamRouter.js';
+import tournamentRouter from './Admin/tournamentRouter.js';
 
 import adminAuth from '../../../middleware/adminAuth.js';
 
@@ -41,6 +42,8 @@ router.use('/admin', adminRouter);
  */
 router.use('/player', adminAuth, playerRouter);
 
-router.use('teams', adminAuth, teamRouter );
+router.use('teams', adminAuth, teamRouter);
+
+router.use('/tournament', adminAuth, tournamentRouter)
 
 export default router;

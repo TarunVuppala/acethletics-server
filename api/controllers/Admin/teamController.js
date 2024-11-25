@@ -59,16 +59,6 @@ export const createTeam = async (req, res, next) => {
             team_name: team.team_name,
         });
     } catch (error) {
-        // Handle database-specific errors
-        if (error instanceof mongoose.Error.ValidationError) {
-            const errorMessage = `Validation Error: ${Object.values(error.errors)
-                .map((err) => err.message)
-                .join('; ')}`;
-            return httpError(next, new Error(errorMessage), req, 400);
-        }
-        if (error.code === 11000) {
-            return httpError(next, new Error('Duplicate key detected: Team name already exists.'), req, 400);
-        }
         httpError(next, error, req, 500);
     }
 };

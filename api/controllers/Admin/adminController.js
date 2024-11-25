@@ -82,28 +82,7 @@ export const adminLogin = async (req, res, next) => {
             role: admin.role,
         });
     } catch (error) {
-        // Handle specific Mongoose validation errors
-        if (error instanceof mongoose.Error.ValidationError) {
-            const validationErrors = Object.values(error.errors).map((err) => err.message);
-            const errorMessage = `Validation Error: ${validationErrors.join('; ')}`;
-            httpError(next, new Error(errorMessage), req, 400);
-        }
-        // Handle casting errors (e.g., invalid ObjectId formats)
-        else if (error instanceof mongoose.Error.CastError) {
-            httpError(next, new Error('Database Error: Invalid query or data format.'), req, 400);
-        }
-        // Handle network/connection issues
-        else if (error.name === 'MongoNetworkError') {
-            httpError(next, new Error('Database Error: Unable to connect to the database.'), req, 500);
-        }
-        // Handle unique constraint or duplicate key errors
-        else if (error.code === 11000) {
-            httpError(next, new Error('Database Error: Duplicate key detected.'), req, 400);
-        }
-        // Catch all other unexpected errors
-        else {
             httpError(next, error, req, 500);
-        }
     }
 };
 
@@ -235,24 +214,6 @@ export const adminRegistration = async (req, res, next) => {
             role: admin.role,
         });
     } catch (error) {
-        if (error instanceof mongoose.Error.ValidationError) {
-            // Format the validation errors into a user-friendly message
-            const validationErrors = Object.values(error.errors).map(
-                (err) => err.message
-            );
-            const errorMessage = `Validation Error: ${validationErrors.join('; ')}`;
-
-            // Return the formatted validation error response
-            httpError(next, new Error(errorMessage), req, 400);
-        } else if (error instanceof mongoose.Error.CastError) {
-            // Handle invalid casting (e.g., invalid ObjectId format)
-            httpError(next, new Error('Database Error: Invalid query or ID format.'), req, 400);
-        } else if (error.name === 'MongoNetworkError') {
-            // Handle database connection issues
-            httpError(next, new Error('Database Error: Unable to connect to the database.'), req, 500);
-        } else {
-            // Handle all other unexpected errors
-            httpError(next, error, req, 500);
-        }
+        httpError(next, error, req, 500);
     }
 };

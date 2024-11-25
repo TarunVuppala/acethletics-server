@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import mongooseAutopopulate from 'mongoose-autopopulate';
 
 const StatsSchema = new mongoose.Schema(
     {
@@ -43,19 +42,18 @@ const StatsSchema = new mongoose.Schema(
     { _id: false }
 );
 
-const PointTableSchema = new mongoose.Schema(
-    {
-        team: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Team',
-        },
-        points: { type: Number, default: 0, min: 0 },
-        matches_played: { type: Number, default: 0, min: 0 },
-        wins: { type: Number, default: 0, min: 0 },
-        losses: { type: Number, default: 0, min: 0 },
-        ties: { type: Number, default: 0, min: 0 },
-        net_run_rate: { type: Number, default: 0, min: 0 },
+const PointTableSchema = new mongoose.Schema({
+    team: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Team',
     },
+    points: { type: Number, default: 0, min: 0 },
+    matches_played: { type: Number, default: 0, min: 0 },
+    wins: { type: Number, default: 0, min: 0 },
+    losses: { type: Number, default: 0, min: 0 },
+    ties: { type: Number, default: 0, min: 0 },
+    net_run_rate: { type: Number, default: 0, min: 0 },
+},
     { _id: false }
 );
 
@@ -103,9 +101,6 @@ const TournamentSchema = new mongoose.Schema(
 
 // Indexes
 TournamentSchema.index({ name: 1 });
-
-// autopopulate plugin
-TournamentSchema.plugin(mongooseAutopopulate);
 
 const Tournament = mongoose.model('Tournament', TournamentSchema);
 

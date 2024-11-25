@@ -102,28 +102,7 @@ export const addPlayer = async (req, res, next) => {
             },
         });
     } catch (error) {
-        // Handle specific Mongoose validation errors
-        if (error instanceof mongoose.Error.ValidationError) {
-            const validationErrors = Object.values(error.errors).map((err) => err.message);
-            const errorMessage = `Validation Error: ${validationErrors.join('; ')}`;
-            httpError(next, new Error(errorMessage), req, 400);
-        }
-        // Handle casting errors (e.g., invalid ObjectId formats)
-        else if (error instanceof mongoose.Error.CastError) {
-            httpError(next, new Error('Database Error: Invalid query or data format.'), req, 400);
-        }
-        // Handle network/connection issues
-        else if (error.name === 'MongoNetworkError') {
-            httpError(next, new Error('Database Error: Unable to connect to the database.'), req, 500);
-        }
-        // Handle unique constraint or duplicate key errors
-        else if (error.code === 11000) {
-            httpError(next, new Error('Database Error: Duplicate key detected.'), req, 400);
-        }
-        // Catch all other unexpected errors
-        else {
-            httpError(next, error, req, 500);
-        }
+        httpError(next, error, req, 500);
     }
 };
 
@@ -334,9 +313,6 @@ export const putPlayer = async (req, res, next) => {
             department: updatedPlayer.department,
         });
     } catch (error) {
-        if (error instanceof mongoose.Error.ValidationError) {
-            return httpError(next, new Error("Validation error: Invalid data"), req, 400);
-        }
         httpError(next, error, req, 500);
     }
 };
@@ -411,9 +387,6 @@ export const patchPlayer = async (req, res, next) => {
             department: updatedPlayer.department,
         });
     } catch (error) {
-        if (error instanceof mongoose.Error.ValidationError) {
-            return httpError(next, new Error("Validation error: Invalid data"), req, 400);
-        }
         httpError(next, error, req, 500);
     }
 };
