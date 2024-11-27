@@ -160,7 +160,7 @@ export const startInnings = async (req, res, next) => {
             return;
         }
         const innings = await Innings.create({
-            match_id,
+            matchId,
             innings_number,
             batting_team_id,
             bowling_team_id,

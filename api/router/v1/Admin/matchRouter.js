@@ -21,6 +21,6 @@ router.post('/:matchId/innings', startInnings);
 
 router.get('/:matchId/innings', getMatchInnings);
 
-router.patch('/:matchId/innings', updateInnings);
+router.patch('/:matchId/innings/:inningsId', updateInnings);
 
 export default router;
