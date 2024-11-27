@@ -171,7 +171,7 @@ export const startInnings = async (req, res, next) => {
             return;
         }
 
-        const match = await Match.findById(match_id).exec();
+        const match = await Match.findById(matchId).exec();
         if (!match) {
             httpResponse(req, res, 200, responseMessage.NOT_FOUND('Match'));
             return;
@@ -301,7 +301,6 @@ export const updateInnings = async (req, res, next) => {
                     player_id: bowler_id,
                     match_id: innings.match_id,
                     innings_number: innings.innings_number,
-                    // Additional fields if needed
                 });
             }
 
