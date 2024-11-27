@@ -1,7 +1,10 @@
 import express from 'express';
 import { addTeamsToTournament, createTournament, deleteTournament, getPointsTable, getStats, getTeamsInTournament, getTournament, getTournaments, removeTeamFromTournament, updatePointsTable, updateStats, updateTournament } from '../../../controllers/Admin/tournamentController';
+import matchRouter from './matchRouter.js';
 
 const router = express.Router();
+
+router.use('/match', matchRouter);
 
 router.post('/', createTournament);
 
