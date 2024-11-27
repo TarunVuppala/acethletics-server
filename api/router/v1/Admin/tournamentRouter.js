@@ -1,5 +1,5 @@
 import express from 'express';
-import { addTeamsToTournament, createTournament, deleteTournament, getPointsTable, getStats, getTeamsInTournament, getTournament, getTournaments, removeTeamFromTournament, updatePointsTable, updateStats, updateTournament } from '../../../controllers/Admin/tournamentController';
+import { addTeamsToTournament, createTournament, deleteTournament, getPointsTable, getStats, getTeamsInTournament, getTournament, getTournaments, removeTeamFromTournament, updatePointsTable, updateStats, updateTournament } from '../../../controllers/Admin/tournamentController.js';
 import matchRouter from './matchRouter.js';
 
 const router = express.Router();

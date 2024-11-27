@@ -1,5 +1,5 @@
 import express from 'express';
-import { createMatch, getMatch, getMatches, startInnings, updateInnings, updateMatch, updateMatchStatus, updateTossStatus } from '../../../controllers/Admin/matchController';
+import { createMatch, getMatch, getMatches, getMatchInnings, startInnings, updateInnings, updateMatch, updateMatchStatus, updateTossStatus } from '../../../controllers/Admin/matchController.js';
 
 const router = express.Router();
 

@@ -158,9 +158,6 @@ const MatchSchema = new mongoose.Schema(
 // Indexes
 MatchSchema.index({ tournament_id: 1, isActive: 1 });
 
-// Autopopulate plugin
-InningsSchema.plugin(require('mongoose-autopopulate'));
-
 const Innings = mongoose.model('Innings', InningsSchema);
 const Match = mongoose.model('Match', MatchSchema);
 
