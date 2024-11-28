@@ -5,28 +5,28 @@ const StatsSchema = new mongoose.Schema(
         highest_runs: {
             player: {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: 'Player',
+                ref: 'CricketPlayer',
             },
             score: { type: Number, default: 0, min: 0 },
         },
         highest_wickets: {
             player: {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: 'Player',
+                ref: 'CricketPlayer',
             },
             wickets: { type: Number, default: 0, min: 0 },
         },
         highest_individual_score: {
             player: {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: 'Player',
+                ref: 'CricketPlayer',
             },
             runs: { type: Number, default: 0, min: 0 },
         },
         best_bowling_figures: {
             player: {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: 'Player',
+                ref: 'CricketPlayer',
             },
             wickets: { type: Number, default: 0, min: 0 },
             runs_conceded: { type: Number, default: 0, min: 0 },
@@ -34,7 +34,7 @@ const StatsSchema = new mongoose.Schema(
         most_catches: {
             player: {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: 'Player',
+                ref: 'CricketPlayer',
             },
             catches: { type: Number, default: 0, min: 0 },
         },
@@ -78,6 +78,10 @@ const TournamentSchema = new mongoose.Schema(
         stats: {
             type: StatsSchema,
             default: {}
+        },
+        location:{
+            type: String,
+            required: true
         },
         point_table: {
             type: [PointTableSchema],

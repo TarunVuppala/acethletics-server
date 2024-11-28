@@ -1,5 +1,6 @@
 import express from 'express';
 import cokkieParser from 'cookie-parser';
+import cors from 'cors';
 
 import httpResponse from './utils/httpResponse.js';
 import responseMessage from './constant/responseMessage.js';
@@ -9,7 +10,12 @@ import httpError from './utils/httpError.js';
 import router_v1 from './api/router/v1/index.js';
 
 const app = express();
+const corsOptions = {
+    origin: ['http://localhost:3000','https://acetheletics.aceec.ac.in'],
+    credentials: true,
+};
 
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cokkieParser());

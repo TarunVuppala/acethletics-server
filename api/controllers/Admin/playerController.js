@@ -5,6 +5,8 @@ import httpError from "../../../utils/httpError.js";
 import responseMessage from "../../../constant/responseMessage.js";
 
 import playerValidator from "../../validator/playerValidator.js";
+import { log } from "util";
+import logger from "../../../utils/logger.js";
 
 /**
  * Controller to add a new cricket player to the database.
@@ -68,7 +70,7 @@ export const addPlayer = async (req, res, next) => {
         }
 
         // Validate the skill object
-        const { error, value } = playerValidator.validate(req.body);
+        const { error, value } = playerValidator.validate(skill);
         if (error) {
             httpError(next, new Error(error.message), req, 400);
             return;
@@ -280,22 +282,28 @@ export const getPlayer = async (req, res, next) => {
  * @throws {500} For database or other unexpected errors.
  */
 export const putPlayer = async (req, res, next) => {
-    try {
+    // try {
         // Validate player ID
         const playerId = req.params.id;
         if (!playerId) {
             return httpError(next, new Error("Player ID is required"), req, 400);
         }
 
-        // Ensure the request body is not empty
-        if (!Object.keys(req.body).length) {
-            return httpError(next, new Error("No data provided for update"), req, 400);
-        }
+        const { player_name, department, skill } = req.body;
+        logger.info(`Updating player ${playerId} with data:`,{
+            player_name,
+            department,
+            skill
+        });
 
         // Replace the player's details
         const updatedPlayer = await CricketPlayer.findByIdAndUpdate(
             playerId,
-            req.body,
+            {
+                player_name,
+                department,
+                skill
+            },
             {
                 new: true, // Return the updated document
                 runValidators: true, // Enforce schema validation
@@ -312,9 +320,9 @@ export const putPlayer = async (req, res, next) => {
             name: updatedPlayer.player_name,
             department: updatedPlayer.department,
         });
-    } catch (error) {
-        httpError(next, error, req, 500);
-    }
+    // } catch (error) {
+    //     httpError(next, error, req, 500);
+    // }
 };
 
 

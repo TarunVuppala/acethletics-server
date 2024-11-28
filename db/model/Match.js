@@ -1,4 +1,3 @@
-// Match.js
 import mongoose from 'mongoose';
 
 const ExtrasSchema = new mongoose.Schema(
@@ -8,7 +7,7 @@ const ExtrasSchema = new mongoose.Schema(
     byes: { type: Number, default: 0 },
     legByes: { type: Number, default: 0 },
     penalty_runs: { type: Number, default: 0 },
-    total: { type: Number, default: 0 }, // Added total field
+    total: { type: Number, default: 0 },
   },
   { _id: false }
 );
@@ -18,7 +17,7 @@ const ScoreSchema = new mongoose.Schema(
     runs: { type: Number, default: 0, min: 0 },
     wickets: { type: Number, default: 0, min: 0 },
     overs: { type: Number, default: 0, min: 0 },
-    balls: { type: Number, default: 0, min: 0 }, // Added balls field
+    balls: { type: Number, default: 0, min: 0 },
     extras: { type: ExtrasSchema, default: {} },
     isDeclared: { type: Boolean, default: false },
     isFollowOn: { type: Boolean, default: false },
@@ -26,7 +25,6 @@ const ScoreSchema = new mongoose.Schema(
   { _id: false }
 );
 
-// Innings.js
 const InningsSchema = new mongoose.Schema(
   {
     match_id: {
@@ -107,33 +105,18 @@ const MatchSchema = new mongoose.Schema(
       required: true,
       immutable: true,
     },
-    team_Aname: {
-      type: String,
-      required: true,
-      trim: true,
-      immutable: true,
+    toss: {
+      winner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Team',
+      },
+      elected_to: {
+        type: String,
+        enum: ['bat', 'bowl'],
+      },
     },
-    team_Bname: {
-      type: String,
-      required: true,
-      trim: true,
-      immutable: true,
-    },
-    toss_winner: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Team',
-    },
-    elected_to: {
-      type: String,
-      enum: ['bat', 'bowl'],
-    },
-    isActive: {
+    status: {
       type: Boolean,
-      default: false,
-    },
-    isFinished: {
-      type: Boolean,
-      default: false,
     },
     innings: [
       {
@@ -149,7 +132,7 @@ const MatchSchema = new mongoose.Schema(
     ],
     man_of_the_match: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Player',
+      ref: 'CricketPlayer',
     },
   },
   { timestamps: true }

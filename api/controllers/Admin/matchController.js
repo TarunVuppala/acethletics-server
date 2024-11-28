@@ -1,14 +1,30 @@
-import { Innings, Match, Tournament } from '../../../db/model/index.js';
+import { Innings, Match, Team, Tournament } from '../../../db/model/index.js';
 
 import httpResponse from "../../../utils/httpResponse.js";
 import httpError from "../../../utils/httpError.js";
 import responseMessage from "../../../constant/responseMessage.js";
 import ballOutcomes from '../../../constant/ballOutcomes.js';
+import { io } from '../../../server.js';
 
 export const createMatch = async (req, res, next) => {
     try {
         const { tournamentId } = req.params;
-        const { startTime, location, team_Aid, team_Bid, team_Aname, team_Bname } = req.body;
+        const { startTime, location, team_Aid, team_Bid } = req.body;
+
+        // Regular expression for validating startTime
+        const Timeregex = /^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM) (0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
+
+        // Check if required fields are provided
+        if (!startTime || !location || !team_Aid || !team_Bid) {
+            httpError(next, new Error(responseMessage.BAD_REQUEST), req, 400);
+            return;
+        }
+
+        // Validate startTime format
+        if (!Timeregex.test(startTime)) {
+            httpError(next, new Error(responseMessage.INVALID_INPUT('Start Time')), req, 400);
+            return;
+        }
 
         // Check if the tournament exists before creating the match
         const tournament = await Tournament.findById(tournamentId).exec();
@@ -17,23 +33,34 @@ export const createMatch = async (req, res, next) => {
             return;
         }
 
+        // Validate if both teams exist
+        const teamA = await Team.findById(team_Aid).exec();
+        const teamB = await Team.findById(team_Bid).exec();
+
+        if (!teamA || !teamB) {
+            httpError(next, new Error('One or both teams not found'), req, 400);
+            return;
+        }
+
+        // Create the match
         const match = await Match.create({
             tournament_id: tournamentId,
-            startTime,
+            startTime: new Date(startTime),
             location,
-            team_Aid,
-            team_Bid,
-            team_Aname,
-            team_Bname
+            team_Aid: teamA._id,
+            team_Bid: teamB._id,
         });
 
+        // Add the match to the tournament's matches array
         tournament.matches.push(match._id);
         await tournament.save();
+
+        // Send response back with the created match data
         httpResponse(req, res, 201, responseMessage.RESOURCE_CREATED('Match'), match);
     } catch (error) {
         httpError(next, error, req, 500);
     }
-}
+};
 
 export const getMatches = async (req, res, next) => {
     try {
@@ -43,6 +70,7 @@ export const getMatches = async (req, res, next) => {
         const matches = await Match.find({ tournament_id: tournamentId })
             .skip(skip)
             .limit(parseInt(rows))
+            .populate('innings')
             .lean()
             .exec();
 
@@ -60,7 +88,14 @@ export const getMatch = async (req, res, next) => {
     try {
         const { matchId } = req.params;
         const match = await Match.findById(matchId)
-            .populate('team_Aid team_Bid')
+            .populate({
+                path: 'team_Aid',
+                select: 'team_name',
+            })
+            .populate({
+                path: 'team_Bid',
+                select: 'team_name',
+            })
             .lean()
             .exec();
 
@@ -108,7 +143,7 @@ export const deleteMatch = async (req, res, next) => {
 export const updateMatchStatus = async (req, res, next) => {
     try {
         const { matchId } = req.params;
-        const { started, finished } = req.body;
+        const { status } = req.body;
 
         const match = await Match.findById(matchId).exec();
         if (!match) {
@@ -116,14 +151,7 @@ export const updateMatchStatus = async (req, res, next) => {
             return;
         }
 
-        if (typeof started !== 'undefined') {
-            match.isActive = started;
-        }
-
-        if (typeof finished !== 'undefined') {
-            match.isFinished = finished;
-        }
-
+        match.status = status;
         await match.save();
 
         httpResponse(req, res, 200, responseMessage.UPDATED('Match'), match);
@@ -135,14 +163,13 @@ export const updateMatchStatus = async (req, res, next) => {
 export const updateTossStatus = async (req, res, next) => {
     try {
         const { matchId } = req.params;
-        const { toss_winner, elected_to } = req.body;
+        const { toss } = req.body;
         const match = await Match.findById(matchId).exec();
         if (!match) {
             httpResponse(req, res, 200, responseMessage.NOT_FOUND('Match'));
             return;
         }
-        match.toss_winner = toss_winner;
-        match.elected_to = elected_to;
+        match.toss = toss;
         await match.save();
         httpResponse(req, res, 200, responseMessage.UPDATED('Match'), match);
     } catch (error) {
@@ -439,6 +466,12 @@ export const updateInnings = async (req, res, next) => {
         }
 
         await innings.save();
+
+        io.emit('innings-updated', {
+            matchId: innings.match_id,
+            inningsId,
+            innings,
+        });
 
         httpResponse(req, res, 200, responseMessage.UPDATED('Innings'), innings);
     } catch (error) {

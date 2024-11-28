@@ -5,11 +5,12 @@
  * managing teams, handling points tables, and statistics.
  */
 
-import { Tournament } from '../../../db/model/index.js';
+import { Team, Tournament } from '../../../db/model/index.js';
 import httpResponse from "../../../utils/httpResponse.js";
 import httpError from "../../../utils/httpError.js";
 import responseMessage from "../../../constant/responseMessage.js";
 import validateAndSortPointTable from '../../validator/pointstableValidator.js';
+import logger from '../../../utils/logger.js';
 
 /**
  * Creates a new tournament.
@@ -55,7 +56,7 @@ export const createTournament = async (req, res, next) => {
             endDate: new Date(endDate),
             location
         });
-        httpResponse(res, 201, responseMessage.RESOURCE_CREATED('Tournament'), tournament);
+        httpResponse(req, res, 201, responseMessage.RESOURCE_CREATED('Tournament'), tournament)
     } catch (error) {
         httpError(next, error, req, 500);
     }
@@ -95,7 +96,7 @@ export const getTournaments = async (req, res, next) => {
             .lean()
             .exec();
 
-        httpResponse(res, 200, responseMessage.FETCHED('Tournaments'), tournaments);
+        httpResponse(req, res, 200, responseMessage.FETCHED('Tournaments'), tournaments);
     } catch (error) {
         httpError(next, error, req, 500);
     }
@@ -134,7 +135,7 @@ export const getTournament = async (req, res, next) => {
             return;
         }
 
-        httpResponse(res, 200, responseMessage.FETCHED('Tournament'), tournament);
+        httpResponse(req, res, 200, responseMessage.FETCHED('Tournament'), tournament);
     } catch (error) {
         httpError(next, error, req, 500);
     }
@@ -168,14 +169,14 @@ export const updateTournament = async (req, res, next) => {
         const { tournamentId } = req.params;
         const updateData = req.body;
 
-        const updatedTournament = await Tournament.findByIdAndUpdate(tournamentId, updateData, { new: true, runValidators: true  }).exec();
+        const updatedTournament = await Tournament.findByIdAndUpdate(tournamentId, updateData, { new: true, runValidators: true }).exec();
 
         if (!updatedTournament) {
             httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Tournament')), req, 404);
             return;
         }
 
-        httpResponse(res, 200, responseMessage.RESOURCE_UPDATED('Tournament'), updatedTournament);
+        httpResponse(req, res, 200, responseMessage.RESOURCE_UPDATED('Tournament'), updatedTournament);
     } catch (error) {
         httpError(next, error, req, 500);
     }
@@ -210,7 +211,7 @@ export const deleteTournament = async (req, res, next) => {
             return;
         }
 
-        httpResponse(res, 200, responseMessage.RESOURCE_DELETED('Tournament'), deletedTournament);
+        httpResponse(req, res, 200, responseMessage.RESOURCE_DELETED('Tournament'), deletedTournament);
     } catch (error) {
         httpError(next, error, req, 500);
     }
@@ -244,17 +245,38 @@ export const addTeamsToTournament = async (req, res, next) => {
         const { team_ids } = req.body;
         const { tournamentId } = req.params;
 
-        const tournament = await Tournament.findById(tournamentId).exec();
-        if (!tournament) {
-            httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Tournament')), req, 404);
-            return;
+        // Validate tournamentId
+        if (!tournamentId) {
+            return httpError(next, new Error("Tournament ID is required"), req, 400);
         }
 
+        // Validate team_ids
+        if (!team_ids || !Array.isArray(team_ids) || team_ids.length === 0) {
+            return httpError(next, new Error("team_ids must be a non-empty array of valid IDs"), req, 400);
+        }
+
+        // Ensure all provided team IDs exist in the database
+        const validTeams = await Team.find({ _id: { $in: team_ids } }).lean().exec();
+        if (validTeams.length !== team_ids.length) {
+            return httpError(next, new Error("One or more team IDs are invalid"), req, 400);
+        }
+
+        // Fetch the tournament
+        const tournament = await Tournament.findById(tournamentId).exec();
+        if (!tournament) {
+            return httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Tournament')), req, 404);
+        }
+
+        // Add only unique teams to the tournament
         const filteredTeams = team_ids.filter((team_id) => !tournament.teams.includes(team_id));
         tournament.teams.push(...filteredTeams);
         await tournament.save();
 
-        httpResponse(res, 200, responseMessage.RESOURCE_UPDATED('Tournament Teams'), tournament.teams);
+        // Respond with success
+        httpResponse(req, res, 200, responseMessage.RESOURCE_UPDATED('Tournament Teams'), {
+            tournamentId: tournament._id,
+            updatedTeams: tournament.teams,
+        });
     } catch (error) {
         httpError(next, error, req, 500);
     }
@@ -283,7 +305,8 @@ export const addTeamsToTournament = async (req, res, next) => {
  */
 export const removeTeamFromTournament = async (req, res, next) => {
     try {
-        const { teamId, tournamentId } = req.params;
+        const { tournamentId } = req.params;
+        const { teamId } = req.body;
 
         const tournament = await Tournament.findById(tournamentId).exec();
         if (!tournament) {
@@ -300,7 +323,7 @@ export const removeTeamFromTournament = async (req, res, next) => {
         tournament.teams.splice(teamIndex, 1);
         await tournament.save();
 
-        httpResponse(res, 200, responseMessage.RESOURCE_DELETED(`Team in Tournament ${tournament.name}`), tournament.teams);
+        httpResponse(req, res, 200, responseMessage.RESOURCE_DELETED(`Team in Tournament ${tournament.name}`), tournament.teams);
     } catch (error) {
         httpError(next, error, req, 500);
     }
@@ -334,7 +357,7 @@ export const getTeamsInTournament = async (req, res, next) => {
             return
         }
 
-        httpResponse(res, 200, responseMessage.FETCHED('Teams from Tournament'), tournament.teams);
+        httpResponse(req, res, 200, responseMessage.FETCHED('Teams from Tournament'), tournament.teams);
     } catch (error) {
         httpError(next, error, req, 500);
     }
@@ -371,23 +394,54 @@ export const updatePointsTable = async (req, res, next) => {
         const { tournamentId } = req.params;
         const { point_table } = req.body;
 
+        // Fetch the tournament document by ID
         const tournament = await Tournament.findById(tournamentId).exec();
         if (!tournament) {
             httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Tournament')), req, 404);
             return;
         }
 
+        // Validate and sort the new point table entries
         const { validTable, invalidEntries } = validateAndSortPointTable(point_table);
         if (invalidEntries.length > 0) {
-            httpError(next, new Error(`Validation failed: ${JSON.stringify(invalidEntries)}`),
-                req, 400);
+            httpError(
+                next,
+                new Error(`Validation failed: ${JSON.stringify(invalidEntries)}`),
+                req,
+                400
+            );
             return;
         }
 
-        tournament.point_table = validTable;
+        // Update or add entries in the point table
+        validTable.forEach(newEntry => {
+            const existingEntryIndex = tournament.point_table.findIndex(
+                entry => entry.team.toString() === newEntry.team
+            );
+
+            if (existingEntryIndex !== -1) {
+                // Update existing entry
+                tournament.point_table[existingEntryIndex] = {
+                    ...tournament.point_table[existingEntryIndex],
+                    ...newEntry,
+                };
+            } else {
+                // Add new entry
+                tournament.point_table.push(newEntry);
+            }
+        });
+
+        // Save the updated tournament document
         await tournament.save();
 
-        httpResponse(res, 200, responseMessage.RESOURCE_UPDATED('Points Table'), tournament.point_table);
+        // Respond with the updated points table
+        httpResponse(
+            req,
+            res,
+            200,
+            responseMessage.RESOURCE_UPDATED('Points Table'),
+            tournament.point_table
+        );
     } catch (error) {
         httpError(next, error, req, 500);
     }
@@ -426,52 +480,57 @@ export const updatePointsTable = async (req, res, next) => {
  */
 export const updateTeamPoints = async (req, res, next) => {
     try {
-        const { id } = req.params; // Tournament ID
-        const { points, team_id } = req.body; // Points and team_id from the request body
+        const { tournamentId, teamId } = req.params; // Tournament ID and Team ID
+        const { point_table } = req.body; // Points data from the request body
 
-        // Fetch the tournament and populate the point_table
-        const tournament = await Tournament.findById(id).populate('point_table').exec();
+        // Fetch the tournament document
+        const tournament = await Tournament.findById(tournamentId).exec();
 
         if (!tournament) {
-            return httpError(next, new Error('Tournament not found'), req, 404); // Handle case where tournament is not found
+            return httpError(next, new Error('Tournament not found'), req, 404);
         }
 
         // Validate and sort the provided points data
-        const { validTable, invalidEntries } = validateAndSortPointTable([points]);
+        const { validTable, invalidEntries } = validateAndSortPointTable([point_table]);
 
-        // If there are invalid entries, return an error
+        // Check for validation issues
         if (invalidEntries.length > 0) {
-            return httpError(next, new Error(`Validation failed for some entries: ${JSON.stringify(invalidEntries)}`), req, 400);
+            return httpError(
+                next,
+                new Error(`Validation failed for some entries: ${JSON.stringify(invalidEntries)}`),
+                req,
+                400
+            );
         }
 
-        // Find the team entry in the point_table array
+        // Locate the team in the point_table
         const teamIndex = tournament.point_table.findIndex(
-            (entry) => entry.team.toString() === team_id.toString()
+            (entry) => entry.team.toString() === teamId.toString()
         );
 
         if (teamIndex === -1) {
-            // If the team is not found in the point_table, return an error
             return httpError(next, new Error('Team not found in the point table'), req, 404);
         }
 
-        // Update the team's points data
+        // Update the specific team's points data
         tournament.point_table[teamIndex] = {
-            ...tournament.point_table[teamIndex],
-            ...validTable[0],
+            ...tournament.point_table[teamIndex], // Retain existing data
+            ...validTable[0], // Update with new valid data
         };
 
         // Save the updated tournament
         await tournament.save();
 
-        // Send the updated point table in the response
+        // Respond with the updated point table
         httpResponse(
+            req,
             res,
             200,
             responseMessage.RESOURCE_UPDATED('Points Table Updated'),
             tournament.point_table
         );
     } catch (error) {
-        // Catch any unexpected errors
+        // Catch unexpected errors
         httpError(next, error, req, 500);
     }
 };
@@ -499,18 +558,24 @@ export const getPointsTable = async (req, res, next) => {
     try {
         const { tournamentId } = req.params;
 
-        const tournament = await Tournament.findById(tournamentId).lean().exec();
+        const tournament = await Tournament.findById(tournamentId)
+            .select('point_table')
+            .lean()
+            .exec();
+
         if (!tournament) {
             return httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Tournament')), req, 404);
         }
 
         if (!tournament.point_table.length) {
-            return httpResponse(res, 200, responseMessage.FETCHED('Points Table'), {
+            return httpResponse(req, res, 200, responseMessage.FETCHED('Points Table'), {
                 message: 'Points table will be updated after the tournament starts.',
             });
         }
 
-        httpResponse(res, 200, responseMessage.FETCHED('Points Table'), tournament.point_table);
+        httpResponse(req, res, 200, responseMessage.FETCHED('Points Table'), {
+            point_table: tournament.point_table
+        });
     } catch (error) {
         httpError(next, error, req, 500);
     }
@@ -539,7 +604,10 @@ export const getStats = async (req, res, next) => {
     try {
         const { tournamentId } = req.params;
 
-        const tournament = await Tournament.findById(tournamentId).lean().exec();
+        const tournament = await Tournament.findById(tournamentId)
+            .select('stats')
+            .lean()
+            .exec();
         if (!tournament) {
             return httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Tournament')), req, 404);
         }
@@ -550,7 +618,9 @@ export const getStats = async (req, res, next) => {
             });
         }
 
-        httpResponse(res, 200, responseMessage.FETCHED('Tournament Statistics'), tournament.stats);
+        httpResponse(req, res, 200, responseMessage.FETCHED('Tournament Statistics'), {
+            stats: tournament.stats
+        });
     } catch (error) {
         httpError(next, error, req, 500);
     }
@@ -597,7 +667,7 @@ export const updateStats = async (req, res, next) => {
         tournament.stats = { ...tournament.stats, ...stats };
         await tournament.save();
 
-        httpResponse(res, 200, responseMessage.RESOURCE_UPDATED('Tournament Stats'), tournament.stats);
+        httpResponse(req, res, 200, responseMessage.RESOURCE_UPDATED('Tournament Stats'), tournament.stats);
     } catch (error) {
         httpError(next, error, req, 500);
     }

@@ -9,10 +9,14 @@ const TeamSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    department: {
+      type: String,
+      required: true
+    },
     players: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Player',
+        ref: 'CricketPlayer',
       },
     ],
   },

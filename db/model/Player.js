@@ -11,7 +11,7 @@ const SkillSchema = new mongoose.Schema(
             batting: {
                 type: String,
                 enum: ['right-handed', 'left-handed'],
-                required: function() {
+                required: function () {
                     return (
                         this.roles.includes('batsman') ||
                         this.roles.includes('wicket_keeper') ||
@@ -30,7 +30,7 @@ const SkillSchema = new mongoose.Schema(
                     'left-arm orthodox',
                     'leg break',
                 ],
-                required: function() {
+                required: function () {
                     return (
                         this.roles.includes('bowler') || this.roles.includes('all_rounder')
                     );
@@ -50,7 +50,7 @@ const CricketPlayerSchema = new mongoose.Schema(
             trim: true,
             index: true,
         },
-        department:{
+        department: {
             type: String,
             required: true
         },
@@ -58,7 +58,7 @@ const CricketPlayerSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Team',
         },
-        skill: { type: SkillSchema, required: true },
+        skill: { type: SkillSchema },
     },
     { timestamps: true }
 );

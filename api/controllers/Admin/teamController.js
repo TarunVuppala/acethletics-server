@@ -1,4 +1,4 @@
-import { Team } from '../../../db/model/index.js';
+import { CricketPlayer, Team } from '../../../db/model/index.js';
 
 import httpResponse from "../../../utils/httpResponse.js";
 import httpError from "../../../utils/httpError.js";
@@ -35,11 +35,16 @@ import responseMessage from "../../../constant/responseMessage.js";
  */
 export const createTeam = async (req, res, next) => {
     try {
-        const { team_name, players } = req.body;
+        const { team_name, department, players } = req.body;
 
         // Check if team_name is provided
         if (!team_name) {
             return httpError(next, new Error("Team name is required"), req, 400);
+        }
+
+        // Validate player IDs if provided
+        if (players && (!Array.isArray(players) || !players.every(id => typeof id === 'string'))) {
+            return httpError(next, new Error("Players must be an array of valid IDs"), req, 400);
         }
 
         // Check if the team already exists
@@ -48,21 +53,31 @@ export const createTeam = async (req, res, next) => {
             return httpError(next, new Error(responseMessage.RESOURCE_ALREADY_EXISTS('Team')), req, 400);
         }
 
+        // Ensure all provided player IDs exist in the database
+        if (players) {
+            const validPlayers = await CricketPlayer.find({ _id: { $in: players } }).lean().exec();
+            if (validPlayers.length !== players.length) {
+                return httpError(next, new Error("One or more player IDs are invalid"), req, 400);
+            }
+        }
+
         // Create the new team
         const team = await Team.create({
             team_name,
-            players: [
-                ...players
-            ]
+            department,
+            players: players || [],
         });
+
+        // Respond with success
         httpResponse(req, res, 201, responseMessage.RESOURCE_CREATED('Team'), {
             team_name: team.team_name,
+            department: team.department,
+            players: team.players,
         });
     } catch (error) {
         httpError(next, error, req, 500);
     }
 };
-
 
 /**
  * Retrieves a paginated list of teams.
@@ -190,18 +205,27 @@ export const getTeam = async (req, res, next) => {
 export const updateTeam = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const { team_name, playersId } = req.body;
+        const { team_name, department, players } = req.body;
 
         const team = await Team.findById(id).lean().exec();
         if (!team) {
             return httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Team')), req, 404);
         }
 
+        // Ensure all provided player IDs exist in the database
+        if (players) {
+            const validPlayers = await CricketPlayer.find({ _id: { $in: players } }).lean().exec();
+            if (validPlayers.length !== players.length) {
+                return httpError(next, new Error("One or more player IDs are invalid"), req, 400);
+            }
+        }
+
         const updatedTeam = await Team.findByIdAndUpdate(
             id,
             {
                 team_name: team_name || team.team_name,
-                players: [...team.players, ...(playersId || [])],
+                department: department || team.department,
+                players: [...team.players, ...(players || [])],
             },
             { new: true, runValidators: true }
         ).lean().exec();

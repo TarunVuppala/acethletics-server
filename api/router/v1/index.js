@@ -14,8 +14,6 @@ import playerRouter from './Admin/playerRouter.js';
 import teamRouter from './Admin/teamRouter.js';
 import tournamentRouter from './Admin/tournamentRouter.js';
 
-import adminAuth from '../../../middleware/adminAuth.js';
-
 const router = express.Router();
 
 /**
@@ -40,10 +38,10 @@ router.use('/admin', adminRouter);
  * @example
  * - POST /api/v1/player: Add a new player.
  */
-router.use('/player', adminAuth, playerRouter);
+router.use('/player', playerRouter);
 
-router.use('teams', adminAuth, teamRouter);
+router.use('/teams', teamRouter);
 
-router.use('/tournament', adminAuth, tournamentRouter)
+router.use('/tournament', tournamentRouter)
 
 export default router;

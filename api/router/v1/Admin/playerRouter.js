@@ -7,6 +7,7 @@
 import express from 'express';
 
 import { addPlayer, deletePlayer, getPlayer, getPlayers, patchPlayer, putPlayer, transferPlayer } from '../../../controllers/Admin/playerController.js';
+import adminAuth from '../../../../middleware/adminAuth.js';
 
 const router = express.Router();
 
@@ -58,7 +59,7 @@ const router = express.Router();
  * @throws {401 Unauthorized} If the admin is not authenticated.
  * @throws {400 Bad Request} If required fields are missing or validation fails.
  */
-router.post('/', addPlayer);
+router.post('/', adminAuth, addPlayer);
 
 
 /**
@@ -94,29 +95,6 @@ router.get('/', getPlayers);
 router.get('/:id', getPlayer);
 
 /**
- * @route PUT /api/v1/players/:id
- * @description Fully replaces a player's details with the provided data.
- * @access Public
- * @example
- * PUT /api/v1/players/:id
- * 
- * @param {string} id - The ID of the player to update.
- * 
- * @request {JSON} Body
- * {
- *   "player_name": "Updated Name",
- *   "department": "Updated Department"
- * }
- * 
- * @response {JSON} Success Response
- * {
- *   "message": "Player updated successfully",
- *   "data": { "name": "Updated Name", "department": "Updated Department" }
- * }
- */
-router.put('/:id', putPlayer);
-
-/**
  * @route PATCH /api/v1/players/:id
  * @description Partially updates a player's details.
  * @access Public
@@ -136,7 +114,7 @@ router.put('/:id', putPlayer);
  *   "data": { "name": "Original Name", "department": "Updated Department" }
  * }
  */
-router.patch('/:id', patchPlayer);
+router.patch('/:id', adminAuth, patchPlayer);
 
 /**
  * @route DELETE /api/v1/players/:id
@@ -153,8 +131,8 @@ router.patch('/:id', patchPlayer);
  *   "data": {}
  * }
  */
-router.delete('/:id', deletePlayer);
+router.delete('/:id', adminAuth, deletePlayer);
 
-router.patch('/:id/transfer/:teamId', transferPlayer);
+router.patch('/:id/transfer/:teamId', adminAuth, transferPlayer);
 
 export default router;

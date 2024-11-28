@@ -24,6 +24,7 @@
     "mongoose-autopopulate": "^1.1.0",
     "path": "^0.12.7",
     "pm2": "^5.4.3",
+    "socket.io": "^4.8.1",
     "util": "^0.12.5",
     "winston": "^3.17.0"
   },

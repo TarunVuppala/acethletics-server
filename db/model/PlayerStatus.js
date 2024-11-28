@@ -6,7 +6,7 @@ const StatusSchema = new mongoose.Schema(
   {
     player_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Player',
+      ref: 'CricketPlayer',
       required: true,
       immutable: true,
       index: true,
@@ -48,11 +48,11 @@ const StatusSchema = new mongoose.Schema(
     // Dismissal info
     bowler_when_out: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Player',
+      ref: 'CricketPlayer',
     },
     wicket_taker: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Player',
+      ref: 'CricketPlayer',
     },
 
     // Extras
