@@ -11,7 +11,7 @@ import router_v1 from './api/router/v1/index.js';
 
 const app = express();
 const corsOptions = {
-    origin: ['http://localhost:3000','https://acetheletics.aceec.ac.in'],
+    origin: ['http://localhost:3000','https://acethletics.aceec.ac.in'],
     credentials: true,
 };
 
