@@ -1,55 +1,32 @@
-import mongoose from 'mongoose';
-
-const ExtrasSchema = new mongoose.Schema(
-  {
-    wides: { type: Number, default: 0 },
-    noBalls: { type: Number, default: 0 },
-    byes: { type: Number, default: 0 },
-    legByes: { type: Number, default: 0 },
-    penalty_runs: { type: Number, default: 0 },
-    total: { type: Number, default: 0 },
-  },
-  { _id: false }
-);
-
-const ScoreSchema = new mongoose.Schema(
-  {
-    runs: { type: Number, default: 0, min: 0 },
-    wickets: { type: Number, default: 0, min: 0 },
-    overs: { type: Number, default: 0, min: 0 },
-    balls: { type: Number, default: 0, min: 0 },
-    extras: { type: ExtrasSchema, default: {} },
-    isDeclared: { type: Boolean, default: false },
-    isFollowOn: { type: Boolean, default: false },
-  },
-  { _id: false }
-);
-
 const InningsSchema = new mongoose.Schema(
   {
     match_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Match',
       required: true,
+      index: true,
     },
     innings_number: {
       type: Number,
       required: true,
+      enum: [1, 2], // Typically, a match has up to 2 innings
     },
     batting_team_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Team',
       required: true,
+      index: true,
     },
     bowling_team_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Team',
       required: true,
+      index: true,
     },
     batting_order: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Player',
+        ref: 'CricketPlayer',
         required: true,
       },
     ],
@@ -57,20 +34,20 @@ const InningsSchema = new mongoose.Schema(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Status',
-        autopopulate: true,
+        autopopulate: { maxDepth: 1 },
       },
     ],
     current_bowler: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Status',
-      autopopulate: true,
+      autopopulate: { maxDepth: 1 },
     },
     wicket_keeper: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Status',
-      autopopulate: true,
+      autopopulate: { maxDepth: 1 },
     },
-    score: { type: ScoreSchema, required: true, default: {} },
+    score: { type: ScoreSchema, required: true, default: () => ({}) },
   },
   { timestamps: true }
 );
@@ -87,36 +64,45 @@ const MatchSchema = new mongoose.Schema(
     startTime: {
       type: Date,
       required: true,
+      index: true,
     },
     location: {
       type: String,
       required: true,
       trim: true,
+      index: true,
     },
     team_Aid: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Team',
       required: true,
       immutable: true,
+      index: true,
     },
     team_Bid: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Team',
       required: true,
       immutable: true,
+      index: true,
     },
     toss: {
       winner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Team',
+        default: null,
       },
       elected_to: {
         type: String,
         enum: ['bat', 'bowl'],
+        default: null,
       },
     },
     status: {
-      type: Boolean,
+      type: String,
+      enum: ['upcoming', 'in_progress', 'completed'],
+      default: 'upcoming',
+      index: true,
     },
     innings: [
       {
@@ -133,13 +119,14 @@ const MatchSchema = new mongoose.Schema(
     man_of_the_match: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'CricketPlayer',
+      default: null,
     },
   },
   { timestamps: true }
 );
 
-// Indexes
-MatchSchema.index({ tournament_id: 1, isActive: 1 });
+MatchSchema.index({ status: 1, startTime: -1 });
+InningsSchema.index({ match_id: 1, innings_number: 1 }, { unique: true });
 
 const Innings = mongoose.model('Innings', InningsSchema);
 const Match = mongoose.model('Match', MatchSchema);

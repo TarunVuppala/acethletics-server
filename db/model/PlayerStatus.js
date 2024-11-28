@@ -1,15 +1,42 @@
-// Status.js
 import mongoose from 'mongoose';
 import mongooseAutopopulate from 'mongoose-autopopulate';
 
+/**
+ * Enumerations for various fields to ensure data consistency.
+ */
+const STRICKING_ROLE_ENUM = [-1, 0, 1, 2]; // -1: Undefined, 0: Out, 1: Striker, 2: Non-striker
+const OUT_TYPE_ENUM = [
+  'caught',
+  'bowled',
+  'run_out',
+  'stumped',
+  'lbw',
+  'hit_wicket',
+  'other',
+];
+const DISMISSAL_TYPE_ENUM = [
+  'caught',
+  'bowled',
+  'run_out',
+  'stumped',
+  'lbw',
+  'hit_wicket',
+  'other',
+];
+
+/**
+ * Status Schema:
+ * Tracks the status and statistics of a player during a match innings.
+ */
 const StatusSchema = new mongoose.Schema(
   {
     player_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'CricketPlayer',
+      ref: 'CricketPlayer', // Reference to 'CricketPlayer' model
       required: true,
       immutable: true,
       index: true,
+      autopopulate: { maxDepth: 1 },
     },
     match_id: {
       type: mongoose.Schema.Types.ObjectId,
@@ -17,59 +44,104 @@ const StatusSchema = new mongoose.Schema(
       required: true,
       immutable: true,
       index: true,
+      autopopulate: { maxDepth: 1 },
     },
     innings_number: {
       type: Number,
       required: true,
       immutable: true,
+      enum: [1, 2], // Typically, a match has up to 2 innings
       index: true,
     },
-    // Batting stats
-    bat_run: { type: Number, default: 0, min: 0 },
-    played_ball: { type: Number, default: 0, min: 0 },
-    hitted_fours: { type: Number, default: 0, min: 0 },
-    hitted_sixes: { type: Number, default: 0, min: 0 },
-    out_type: { type: String, trim: true },
-    stricking_role: { type: Number }, // 1 for striker, 2 for non-striker, 0 for out
-
-    // Bowling stats
-    bowlruns: { type: Number, default: 0, min: 0 },
-    bowled_overs: { type: Number, default: 0, min: 0 },
-    maiden_overs: { type: Number, default: 0, min: 0 },
-    wicket: { type: Number, default: 0, min: 0 },
-    extra_wicket: { type: Number, default: 0, min: 0 },
-    noball: { type: Number, default: 0, min: 0 },
-    wideball: { type: Number, default: 0, min: 0 },
-
-    // Fielding stats
-    catches: { type: Number, default: 0, min: 0 },
-    stumpings: { type: Number, default: 0, min: 0 },
-
-    // Dismissal info
-    bowler_when_out: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'CricketPlayer',
+    /**
+     * Batting Statistics
+     */
+    batting: {
+      runs: { type: Number, default: 0, min: 0 },
+      balls_faced: { type: Number, default: 0, min: 0 },
+      fours: { type: Number, default: 0, min: 0 },
+      sixes: { type: Number, default: 0, min: 0 },
+      strike_rate: { type: Number, default: 0, min: 0 },
+      out_type: {
+        type: String,
+        enum: OUT_TYPE_ENUM,
+        trim: true,
+        default: null,
+      },
+      stricking_role: {
+        type: Number,
+        enum: STRICKING_ROLE_ENUM,
+        default: -1, // -1: Undefined, 0: Out, 1: Striker, 2: Non-striker
+        index: true,
+      },
     },
-    wicket_taker: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'CricketPlayer',
+    /**
+     * Bowling Statistics
+     */
+    bowling: {
+      runs_conceded: { type: Number, default: 0, min: 0 },
+      overs_bowled: { type: Number, default: 0, min: 0 },
+      maidens: { type: Number, default: 0, min: 0 },
+      wickets: { type: Number, default: 0, min: 0 },
+      extras_conceded: { type: Number, default: 0, min: 0 },
+      no_balls: { type: Number, default: 0, min: 0 },
+      wides: { type: Number, default: 0, min: 0 },
+      economy_rate: { type: Number, default: 0, min: 0 },
     },
-
-    // Extras
-    extra: { type: Number, default: 0, min: 0 },
+    /**
+     * Fielding Statistics
+     */
+    fielding: {
+      catches: { type: Number, default: 0, min: 0 },
+      stumpings: { type: Number, default: 0, min: 0 },
+    },
+    /**
+     * Dismissal Information
+     */
+    dismissal: {
+      bowler_when_out: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'CricketPlayer', // Reference to 'CricketPlayer' model
+        default: null,
+      },
+      wicket_taker: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'CricketPlayer', // Reference to 'CricketPlayer' model
+        default: null,
+      },
+      dismissal_type: {
+        type: String,
+        enum: DISMISSAL_TYPE_ENUM,
+        trim: true,
+        default: null,
+      },
+    },
+    /**
+     * Extras
+     */
+    extra_runs: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true }
 );
 
-// Indexes
+/**
+ * Compound Unique Index:
+ * Ensures that each player has only one status per match innings.
+ */
 StatusSchema.index(
   { match_id: 1, innings_number: 1, player_id: 1 },
   { unique: true }
 );
 
-// Autopopulate plugin
+/**
+ * Plugins:
+ * - mongoose-autopopulate: Automatically populates referenced fields.
+ */
 StatusSchema.plugin(mongooseAutopopulate);
 
+/**
+ * Model Creation
+ */
 const Status = mongoose.model('Status', StatusSchema);
 
 export default Status;
