@@ -5,7 +5,6 @@ import httpError from "../../../utils/httpError.js";
 import responseMessage from "../../../constant/responseMessage.js";
 import ballOutcomes from '../../../constant/ballOutcomes.js';
 import logger from '../../../utils/logger.js';
-import { log } from 'util';
 
 /**
  * Create a new match within a tournament.
@@ -118,6 +117,8 @@ export const getMatches = async (req, res, next) => {
             .skip(skip)
             .limit(parseInt(rows))
             .populate('innings')
+            .populate('team_Aid', 'team_name')
+            .populate('team_Bid', 'team_name')
             .lean()
             .exec();
 

@@ -5,7 +5,6 @@ import httpError from "../../../utils/httpError.js";
 import responseMessage from "../../../constant/responseMessage.js";
 
 import playerValidator from "../../validator/playerValidator.js";
-import { log } from "util";
 import logger from "../../../utils/logger.js";
 
 /**

@@ -1,8 +1,9 @@
-import { CricketPlayer, Team } from '../../../db/model/index.js';
+import { CricketPlayer, Team, Tournament } from '../../../db/model/index.js';
 
 import httpResponse from "../../../utils/httpResponse.js";
 import httpError from "../../../utils/httpError.js";
 import responseMessage from "../../../constant/responseMessage.js";
+import logger from '../../../utils/logger.js';
 
 /**
  * Creates a new team.
@@ -35,6 +36,7 @@ import responseMessage from "../../../constant/responseMessage.js";
  */
 export const createTeam = async (req, res, next) => {
     try {
+        const { tournamentId } = req.params;
         const { team_name, department, players } = req.body;
 
         // Check if team_name is provided
@@ -53,9 +55,16 @@ export const createTeam = async (req, res, next) => {
             return httpError(next, new Error(responseMessage.RESOURCE_ALREADY_EXISTS('Team')), req, 400);
         }
 
-        // Ensure all provided player IDs exist in the database
-        if (players) {
-            const validPlayers = await CricketPlayer.find({ _id: { $in: players } }).lean().exec();
+        // Fetch the tournament
+        const tournament = await Tournament.findById(tournamentId).select('teams').exec();
+        if (!tournament) {
+            return httpError(next, new Error("Tournament not found"), req, 404);
+        }
+
+        // Validate player IDs
+        let validPlayers = [];
+        if (players && players.length > 0) {
+            validPlayers = await CricketPlayer.find({ _id: { $in: players } }).exec();
             if (validPlayers.length !== players.length) {
                 return httpError(next, new Error("One or more player IDs are invalid"), req, 400);
             }
@@ -65,19 +74,28 @@ export const createTeam = async (req, res, next) => {
         const team = await Team.create({
             team_name,
             department,
-            players: players || [],
+            players: validPlayers.map(player => player._id), // Add valid player IDs to the team
         });
 
+        // Update the tournament to include the new team
+        tournament.teams.push(team._id);
+        await tournament.save();
+
+        // Update players to include the team_id
+        if (validPlayers.length > 0) {
+            await CricketPlayer.updateMany(
+                { _id: { $in: validPlayers.map(player => player._id) } },
+                { team_id: team._id }
+            );
+        }
+
         // Respond with success
-        httpResponse(req, res, 201, responseMessage.RESOURCE_CREATED('Team'), {
-            team_name: team.team_name,
-            department: team.department,
-            players: team.players,
-        });
+        httpResponse(req, res, 201, responseMessage.RESOURCE_CREATED('Team'), team);
     } catch (error) {
         httpError(next, error, req, 500);
     }
 };
+
 
 /**
  * Retrieves a paginated list of teams.
@@ -121,6 +139,7 @@ export const getTeams = async (req, res, next) => {
             .sort({ team_name: 1 })
             .skip(skip)
             .limit(rowsPerPage)
+            .populate('players', 'player_name')
             .lean()
             .exec();
 
@@ -129,6 +148,7 @@ export const getTeams = async (req, res, next) => {
         httpError(next, error, req, 500);
     }
 };
+
 
 /**
  * Retrieves a specific team by ID.

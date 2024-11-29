@@ -1,11 +1,13 @@
 import express from 'express';
 import { addTeamsToTournament, createTournament, deleteTournament, getPointsTable, getStats, getTeamsInTournament, getTournament, getTournaments, removeTeamFromTournament, updatePointsTable, updateStats, updateTeamPoints, updateTournament } from '../../../controllers/Admin/tournamentController.js';
 import matchRouter from './matchRouter.js';
+import teamRouter from '../../../router/v1/Admin/teamRouter.js';
 import adminAuth from '../../../../middleware/adminAuth.js';
 
 const router = express.Router();
 
 router.use('/:tournamentId/match', matchRouter);
+router.use('/:tournamentId/teams', teamRouter);
 
 router.post('/', adminAuth, createTournament);
 

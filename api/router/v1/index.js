@@ -11,7 +11,6 @@ import express from 'express';
 
 import adminRouter from './Admin/adminRouter.js';
 import playerRouter from './Admin/playerRouter.js';
-import teamRouter from './Admin/teamRouter.js';
 import tournamentRouter from './Admin/tournamentRouter.js';
 
 const router = express.Router();
@@ -39,8 +38,6 @@ router.use('/admin', adminRouter);
  * - POST /api/v1/player: Add a new player.
  */
 router.use('/player', playerRouter);
-
-router.use('/teams', teamRouter);
 
 router.use('/tournament', tournamentRouter)
 

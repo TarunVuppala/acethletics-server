@@ -2,7 +2,7 @@ import express from 'express';
 import { createTeam, deleteTeam, getTeam, getTeams, updateTeam } from '../../../controllers/Admin/teamController.js';
 import adminAuth from '../../../../middleware/adminAuth.js';
 
-const router = express.Router();
+const router = express.Router({ mergeParams: true });
 
 router.post('/', adminAuth, createTeam);
 
