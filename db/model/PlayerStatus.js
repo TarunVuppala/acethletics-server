@@ -4,7 +4,7 @@ import mongooseAutopopulate from 'mongoose-autopopulate';
 /**
  * Enumerations for various fields to ensure data consistency.
  */
-const STRICKING_ROLE_ENUM = [-1, 0, 1, 2]; // -1: Undefined, 0: Out, 1: Striker, 2: Non-striker
+const STRIKING_ROLE_ENUM = [0, 1, 2]; // 0: Out, 1: Striker, 2: Non-striker
 const OUT_TYPE_ENUM = [
   'caught',
   'bowled',
@@ -68,10 +68,10 @@ const StatusSchema = new mongoose.Schema(
         trim: true,
         default: null,
       },
-      stricking_role: {
+      striking_role: {
         type: Number,
-        enum: STRICKING_ROLE_ENUM,
-        default: -1, // -1: Undefined, 0: Out, 1: Striker, 2: Non-striker
+        enum: STRIKING_ROLE_ENUM,
+        default: null, // 0: Out, 1: Striker, 2: Non-striker
         index: true,
       },
     },
@@ -140,8 +140,29 @@ StatusSchema.index(
 StatusSchema.plugin(mongooseAutopopulate);
 
 /**
+ * Middleware to Calculate Strike Rate and Economy Rate
+ */
+StatusSchema.pre('save', function (next) {
+  // Calculate Strike Rate
+  if (this.batting.balls_faced > 0) {
+    this.batting.strike_rate = (this.batting.runs / this.batting.balls_faced) * 100;
+  } else {
+    this.batting.strike_rate = 0;
+  }
+
+  // Calculate Economy Rate
+  if (this.bowling.overs_bowled > 0) {
+    this.bowling.economy_rate = this.bowling.runs_conceded / this.bowling.overs_bowled;
+  } else {
+    this.bowling.economy_rate = 0;
+  }
+
+  next();
+});
+
+/**
  * Model Creation
  */
-const Status = mongoose.model('Status', StatusSchema);
+const Status = mongoose.models.Status || mongoose.model('Status', StatusSchema);
 
 export default Status;

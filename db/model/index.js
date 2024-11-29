@@ -3,7 +3,7 @@ import { Match, Innings } from './Match.js';
 import CricketPlayer from './Player.js';
 import Team from './Team.js';
 import Tournament from './Tournament.js';
-import PlayerStatus from './PlayerStatus.js';
+import Status from './PlayerStatus.js';
 
 export {
     Admin,
@@ -12,5 +12,5 @@ export {
     Tournament,
     Match,
     Innings,
-    PlayerStatus
+    Status
 };

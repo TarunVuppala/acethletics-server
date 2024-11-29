@@ -1,50 +1,61 @@
 import mongoose from 'mongoose';
-import { Innings, Match, Team, Tournament } from '../../../db/model/index.js';
+import { Match, Innings, Status, Team, Tournament } from '../../../db/model/index.js';
 import httpResponse from "../../../utils/httpResponse.js";
 import httpError from "../../../utils/httpError.js";
 import responseMessage from "../../../constant/responseMessage.js";
 import ballOutcomes from '../../../constant/ballOutcomes.js';
-import { io } from '../../../server.js';
-import Status from '../../../db/model/PlayerStatus.js';
+import logger from '../../../utils/logger.js';
+import { log } from 'util';
 
 /**
- * Creates a new match within a tournament.
+ * Create a new match within a tournament.
+ * POST /api/admin/tournaments/:tournamentId/matches
  */
 export const createMatch = async (req, res, next) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
         const { tournamentId } = req.params;
-        const { startTime, location, team_Aid, team_Bid } = req.body;
+        const { startTime, location, team_Aid, team_Bid, overs } = req.body;
 
         // Regular expression for validating startTime (Format: "HH:MM AM/PM DD/MM/YYYY")
         const timeRegex = /^(0[1-9]|1[0-2]):[0-5][0-9] (AM|PM) (0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
 
         // Check if required fields are provided
         if (!startTime || !location || !team_Aid || !team_Bid) {
-            httpError(next, new Error(responseMessage.BAD_REQUEST || 'All required fields must be provided'), req, 400);
+            httpError(next, new Error('All required fields must be provided'), req, 400);
+            await session.abortTransaction();
+            session.endSession();
             return;
         }
 
         // Validate startTime format
         if (!timeRegex.test(startTime)) {
-            httpError(next, new Error(responseMessage.INVALID_INPUT('Start Time') || 'Invalid Start Time format'), req, 400);
+            httpError(next, new Error('Invalid Start Time format'), req, 400);
+            await session.abortTransaction();
+            session.endSession();
             return;
         }
 
         // Check if the tournament exists before creating the match
-        const tournament = await Tournament.findById(tournamentId).exec();
+        const tournament = await Tournament.findById(tournamentId).session(session).exec();
         if (!tournament) {
             httpError(next, new Error('Tournament not found'), req, 404);
+            await session.abortTransaction();
+            session.endSession();
             return;
         }
 
         // Validate if both teams exist
         const [teamA, teamB] = await Promise.all([
-            Team.findById(team_Aid).exec(),
-            Team.findById(team_Bid).exec(),
+            Team.findById(team_Aid).session(session).exec(),
+            Team.findById(team_Bid).session(session).exec(),
         ]);
 
         if (!teamA || !teamB) {
             httpError(next, new Error('One or both teams not found'), req, 404);
+            await session.abortTransaction();
+            session.endSession();
             return;
         }
 
@@ -62,27 +73,40 @@ export const createMatch = async (req, res, next) => {
         const parsedStartTime = new Date(`${year}-${month}-${day}T${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00Z`);
 
         // Create the match
-        const match = await Match.create({
+        const match = await Match.create([{
             tournament_id: tournamentId,
             startTime: parsedStartTime,
             location,
             team_Aid: teamA._id,
             team_Bid: teamB._id,
-        });
+            overs
+        }], { session });
 
         // Add the match to the tournament's matches array
-        tournament.matches.push(match._id);
-        await tournament.save();
+        tournament.matches.push(match[0]._id);
+        await tournament.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
+
+        // Emit socket event if using sockets (optional)
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('match-created', match[0]);
+        }
 
         // Send response back with the created match data
-        httpResponse(req, res, 201, responseMessage.RESOURCE_CREATED('Match'), match);
+        httpResponse(req, res, 201, responseMessage.RESOURCE_CREATED('Match'), match[0]);
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         httpError(next, error, req, 500);
     }
 };
 
 /**
  * Retrieves matches for a specific tournament with pagination.
+ * GET /api/admin/tournaments/:tournamentId/matches
  */
 export const getMatches = async (req, res, next) => {
     try {
@@ -110,6 +134,7 @@ export const getMatches = async (req, res, next) => {
 
 /**
  * Retrieves a specific match by its ID.
+ * GET /api/admin/matches/:matchId
  */
 export const getMatch = async (req, res, next) => {
     try {
@@ -122,6 +147,14 @@ export const getMatch = async (req, res, next) => {
             .populate({
                 path: 'team_Bid',
                 select: 'team_name',
+            })
+            .populate({
+                path: 'innings',
+                populate: [
+                    { path: 'current_batsmen', populate: { path: 'player_id', select: 'name skill' } },
+                    { path: 'current_bowler', populate: { path: 'player_id', select: 'name skill' } },
+                    { path: 'wicket_keeper', populate: { path: 'player_id', select: 'name skill' } },
+                ],
             })
             .lean()
             .exec();
@@ -139,98 +172,216 @@ export const getMatch = async (req, res, next) => {
 
 /**
  * Updates details of a specific match.
+ * PUT /api/admin/matches/:matchId
  */
 export const updateMatch = async (req, res, next) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
         const { matchId } = req.params;
         const updatedDetails = req.body;
 
-        const match = await Match.findById(matchId).exec();
+        const match = await Match.findById(matchId).session(session).exec();
         if (!match) {
             httpResponse(req, res, 404, responseMessage.NOT_FOUND('Match'));
+            await session.abortTransaction();
+            session.endSession();
             return;
         }
 
-        match.set(updatedDetails);
-        await match.save();
+        // Prevent updating immutable fields
+        const immutableFields = ['tournament_id', 'team_Aid', 'team_Bid'];
+        for (const field of immutableFields) {
+            if (updatedDetails.hasOwnProperty(field)) {
+                httpError(next, new Error(`${field} cannot be updated.`), req, 400);
+                await session.abortTransaction();
+                session.endSession();
+                return;
+            }
+        }
+
+        // Update allowed fields
+        Object.keys(updatedDetails).forEach(key => {
+            match[key] = updatedDetails[key];
+        });
+
+        await match.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
+
+        // Emit socket event if using sockets (optional)
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('match-updated', match);
+        }
 
         httpResponse(req, res, 200, responseMessage.UPDATED('Match'), match);
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         httpError(next, error, req, 500);
     }
 };
 
 /**
  * Deletes a specific match by its ID.
+ * DELETE /api/admin/matches/:matchId
  */
 export const deleteMatch = async (req, res, next) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
         const { matchId } = req.params;
-        const match = await Match.findByIdAndDelete(matchId).exec();
 
-        if (!match) {
-            httpResponse(req, res, 404, responseMessage.NOT_FOUND('Match'));
+        if (!mongoose.Types.ObjectId.isValid(matchId)) {
+            httpError(next, new Error('Invalid Match ID.'), req, 400);
+            await session.abortTransaction();
+            session.endSession();
             return;
         }
 
-        // Optionally, you might want to remove the match from the tournament's matches array
-        await Tournament.findByIdAndUpdate(match.tournament_id, { $pull: { matches: match._id } }).exec();
+        const match = await Match.findByIdAndDelete(matchId).session(session).exec();
+
+        if (!match) {
+            httpResponse(req, res, 404, responseMessage.NOT_FOUND('Match'));
+            await session.abortTransaction();
+            session.endSession();
+            return;
+        }
+
+        // Remove the match from the tournament's matches array
+        await Tournament.findByIdAndUpdate(match.tournament_id, { $pull: { matches: match._id } }).session(session).exec();
+
+        // Delete related innings and status documents
+        await Innings.deleteMany({ match_id: matchId }).session(session).exec();
+        await Status.deleteMany({ match_id: matchId }).session(session).exec();
+
+        await session.commitTransaction();
+        session.endSession();
+
+        // Emit socket event if using sockets (optional)
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('match-deleted', { matchId });
+        }
 
         httpResponse(req, res, 200, responseMessage.DELETED('Match'));
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         httpError(next, error, req, 500);
     }
 };
 
 /**
  * Updates the status of a specific match.
+ * PUT /api/admin/matches/:matchId/status
  */
 export const updateMatchStatus = async (req, res, next) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
         const { matchId } = req.params;
         const { status } = req.body;
 
-        const match = await Match.findById(matchId).exec();
+        const validStatuses = ['upcoming', 'in_progress', 'completed', 'cancelled', 'abandoned'];
+
+        if (!validStatuses.includes(status)) {
+            httpError(next, new Error(`Status must be one of ${validStatuses.join(', ')}.`), req, 400);
+            await session.abortTransaction();
+            session.endSession();
+            return;
+        }
+
+        const match = await Match.findById(matchId).session(session).exec();
         if (!match) {
             httpResponse(req, res, 404, responseMessage.NOT_FOUND('Match'));
+            await session.abortTransaction();
+            session.endSession();
             return;
         }
 
         match.status = status;
-        await match.save();
+        await match.save({ session });
 
-        httpResponse(req, res, 200, responseMessage.UPDATED('Match'), match);
+        await session.commitTransaction();
+        session.endSession();
+
+        // Emit socket event if using sockets (optional)
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('match-status-updated', match);
+        }
+
+        httpResponse(req, res, 200, responseMessage.UPDATED('Match Status'), match);
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         httpError(next, error, req, 500);
     }
 };
 
 /**
  * Updates the toss details of a specific match.
+ * PUT /api/admin/matches/:matchId/toss
  */
 export const updateTossStatus = async (req, res, next) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
     try {
         const { matchId } = req.params;
-        const { toss } = req.body;
+        const { toss_election, tossWinnerId } = req.body;
 
-        const match = await Match.findById(matchId).exec();
-        if (!match) {
-            httpResponse(req, res, 404, responseMessage.NOT_FOUND('Match'));
+        if (!toss_election || !['bat', 'bowl'].includes(toss_election)) {
+            httpError(next, new Error('Toss election must be either "bat" or "bowl".'), req, 400);
+            await session.abortTransaction();
+            session.endSession();
             return;
         }
 
-        match.toss = toss;
-        await match.save();
+        const match = await Match.findById(matchId).session(session).exec();
+        if (!match) {
+            httpResponse(req, res, 404, responseMessage.NOT_FOUND('Match'));
+            await session.abortTransaction();
+            session.endSession();
+            return;
+        }
+        const randomDecision = Math.random() < 0.5;
 
-        httpResponse(req, res, 200, responseMessage.UPDATED('Match'), match);
+        if (!tossWinnerId) {
+            // Automatically determine the toss winner (for example purposes, randomly choose)
+            tossWinnerId = Math.random() < 0.5 ? match.team_Aid : match.team_Bid;
+        }
+
+        match.toss = {
+            winner: tossWinnerId || randomDecision,
+            elected_to: toss_election,
+        };
+        match.status = 'in_progress';
+
+        await match.save({ session });
+
+        await session.commitTransaction();
+        session.endSession();
+
+        // Emit socket event if using sockets (optional)
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('toss-updated', match);
+        }
+
+        httpResponse(req, res, 200, responseMessage.UPDATED('Toss Status'), match);
     } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
         httpError(next, error, req, 500);
     }
 };
 
-
 /**
  * Starts a new innings within a match.
+ * POST /api/admin/matches/:matchId/innings
  */
 export const startInnings = async (req, res, next) => {
     const session = await mongoose.startSession();
@@ -241,20 +392,20 @@ export const startInnings = async (req, res, next) => {
             innings_number,
             batting_team_id,
             bowling_team_id,
-            batting_order,
             initial_bowler_id, // Initial bowler to start the innings
         } = req.body;
 
         // Validate required fields
-        if (!batting_order || !Array.isArray(batting_order) || batting_order.length < 2) {
-            httpError(next, new Error('Batting order must include at least two players'), req, 400);
+        if (!innings_number || !batting_team_id || !bowling_team_id || !initial_bowler_id) {
+            httpError(next, new Error('All required fields must be provided'), req, 400);
             await session.abortTransaction();
             session.endSession();
             return;
         }
 
-        if (!initial_bowler_id) {
-            httpError(next, new Error('Initial bowler ID must be provided'), req, 400);
+        // Ensure innings_number is either 1 or 2
+        if (![1, 2].includes(innings_number)) {
+            httpError(next, new Error('Innings number must be 1 or 2'), req, 400);
             await session.abortTransaction();
             session.endSession();
             return;
@@ -263,66 +414,51 @@ export const startInnings = async (req, res, next) => {
         // Fetch the match
         const match = await Match.findById(matchId).session(session).exec();
         if (!match) {
-            httpResponse(req, res, 404, responseMessage.NOT_FOUND('Match'));
+            httpError(next, new Error('Match not found'), req, 404);
             await session.abortTransaction();
             session.endSession();
             return;
         }
 
-        // Fetch the batting team and verify players
-        const battingTeam = await Team.findById(batting_team_id)
-            .populate({
-                path: 'players',
-                select: 'player_id',
-            })
-            .session(session)
-            .exec();
-
-        if (!battingTeam) {
-            httpError(next, new Error('Batting team not found'), req, 404);
+        // Check if innings_number already exists
+        const existingInnings = await Innings.findOne({ match_id: matchId, innings_number }).session(session).exec();
+        if (existingInnings) {
+            httpError(next, new Error(`Innings ${innings_number} already exists for this match`), req, 400);
             await session.abortTransaction();
             session.endSession();
             return;
         }
 
-        // Verify that each player in batting_order is part of the batting team
-        const battingTeamPlayerIds = battingTeam.players.map(player => player.player_id.toString());
-        const invalidBatsmen = batting_order.filter(playerId => !battingTeamPlayerIds.includes(playerId));
+        // Fetch batting and bowling teams
+        const [battingTeam, bowlingTeam] = await Promise.all([
+            Team.findById(batting_team_id).populate('players').session(session).exec(),
+            Team.findById(bowling_team_id).populate('players').session(session).exec(),
+        ]);
 
-        if (invalidBatsmen.length > 0) {
-            httpError(next, new Error(`Players ${invalidBatsmen.join(', ')} are not part of the batting team`), req, 400);
+        if (!battingTeam || !bowlingTeam) {
+            httpError(next, new Error('Batting or Bowling team not found'), req, 404);
             await session.abortTransaction();
             session.endSession();
             return;
         }
 
-        // Fetch the bowling team with players
-        const bowlingTeam = await Team.findById(bowling_team_id)
-            .populate({
-                path: 'players',
-                select: 'player_id skill',
-            })
-            .session(session)
-            .exec();
+        // Check if the initial bowler is part of the bowling team
+        const isInitialBowlerValid = bowlingTeam.players.find(
+            player => {
+                player._id === initial_bowler_id
+                return player
+            }
+        );
 
-        if (!bowlingTeam) {
-            httpError(next, new Error('Bowling team not found'), req, 404);
-            await session.abortTransaction();
-            session.endSession();
-            return;
-        }
-
-        // Verify that initial_bowler_id is part of the bowling team
-        const bowlingTeamPlayerIds = bowlingTeam.players.map(player => player.player_id.toString());
-        if (!bowlingTeamPlayerIds.includes(initial_bowler_id)) {
+        if (!isInitialBowlerValid) {
             httpError(next, new Error('Initial bowler is not part of the bowling team'), req, 400);
             await session.abortTransaction();
             session.endSession();
             return;
         }
 
-        // Find the wicket-keeper from the bowling team's players
-        const wicketKeeper = bowlingTeam.players.find(player => player.skill.role.includes('wicket_keeper'));
+        // Find the wicket-keeper from the bowling team
+        const wicketKeeper = bowlingTeam.players.find(player => player.skill.roles.includes('wicket_keeper'));
 
         if (!wicketKeeper) {
             httpError(next, new Error('Wicket-keeper not found in bowling team'), req, 400);
@@ -331,52 +467,74 @@ export const startInnings = async (req, res, next) => {
             return;
         }
 
-        // Create Status documents for initial batsmen, wicket-keeper, and initial bowler concurrently
-        const [batsman1Status, batsman2Status, wicketKeeperStatus, initialBowlerStatus] = await Promise.all([
+        // Assume batting_order is only striker and non-striker
+        const batting_order = req.body.batting_order;
+        if (!batting_order || !Array.isArray(batting_order) || batting_order.length !== 2) {
+            httpError(next, new Error('Batting order must include exactly two players: striker and non-striker'), req, 400);
+            await session.abortTransaction();
+            session.endSession();
+            return;
+        }
+
+        // Validate that the batting players are part of the batting team
+        const battingTeamPlayerIds = battingTeam.players.map(player => player._id.toString());
+        logger.info('batting team player ids',{...battingTeamPlayerIds});
+        const invalidBatsmen = batting_order.filter(playerId => !battingTeamPlayerIds.includes(playerId.toString()));
+        if (invalidBatsmen.length > 0) {
+            httpError(next, new Error(`Players ${invalidBatsmen.join(', ')} are not part of the batting team`), req, 400);
+            await session.abortTransaction();
+            session.endSession();
+            return;
+        }
+
+        // Create Status documents for striker and non-striker
+        const [strikerStatus, nonStrikerStatus] = await Promise.all([
             Status.create([{
                 player_id: batting_order[0],
                 match_id: matchId,
                 innings_number: innings_number,
-                stricking_role: 1, // 1 for striker
+                batting: {
+                    stricking_role: 1, // 1 for striker
+                },
+                fielding: {},
             }], { session }),
             Status.create([{
                 player_id: batting_order[1],
                 match_id: matchId,
                 innings_number: innings_number,
-                stricking_role: 2, // 2 for non-striker
-            }], { session }),
-            Status.create([{
-                player_id: wicketKeeper.player_id,
-                match_id: matchId,
-                innings_number: innings_number,
-                // Additional fields if needed
-            }], { session }),
-            Status.create([{
-                player_id: initial_bowler_id,
-                match_id: matchId,
-                innings_number: innings_number,
-                // Additional fields if needed
+                batting: {
+                    stricking_role: 2, // 2 for non-striker
+                },
+                fielding: {},
             }], { session }),
         ]);
 
-        // Extract the created documents
-        const [batsman1, batsman2, wicketKeeperDoc, initialBowlerDoc] = [
-            batsman1Status[0],
-            batsman2Status[0],
-            wicketKeeperStatus[0],
-            initialBowlerStatus[0],
-        ];
+        // Create Status document for wicket-keeper
+        const wicketKeeperStatus = await Status.create([{
+            player_id: wicketKeeper._id,
+            match_id: matchId,
+            innings_number: innings_number,
+            // Additional fields if needed
+        }], { session });
+
+        // Create Status document for initial bowler
+        const initialBowlerStatus = await Status.create([{
+            player_id: initial_bowler_id,
+            match_id: matchId,
+            innings_number: innings_number,
+            // Additional fields if needed
+        }], { session });
 
         // Create the innings
         const innings = await Innings.create([{
             match_id: matchId,
             innings_number,
-            batting_team_id,
-            bowling_team_id,
-            batting_order,
-            current_batsmen: [batsman1._id, batsman2._id],
-            wicket_keeper: wicketKeeperDoc._id,
-            current_bowler: initialBowlerDoc._id,
+            batting_team_id: batting_team_id,
+            bowling_team_id: bowling_team_id,
+            batting_order: batting_order, // Only striker and non-striker
+            current_batsmen: [strikerStatus[0]._id, nonStrikerStatus[0]._id],
+            wicket_keeper: wicketKeeperStatus[0]._id,
+            current_bowler: initialBowlerStatus[0]._id,
             score: {
                 runs: 0,
                 wickets: 0,
@@ -390,56 +548,66 @@ export const startInnings = async (req, res, next) => {
                     penalty_runs: 0,
                     total: 0,
                 },
+                isDeclared: false,
+                isFollowOn: false,
             },
+            commentary: [],
+            status: 'ongoing',
         }], { session });
 
-        // Extract the created innings
-        const [inningsDoc] = innings;
+        const inningsDoc = innings[0];
 
         // Add the innings to the match's innings array
         match.innings.push(inningsDoc._id);
+        match.status = 'in_progress';
         await match.save({ session });
 
-        // Commit the transaction
         await session.commitTransaction();
         session.endSession();
+
+        // Emit socket event if using sockets (optional)
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('innings-started', inningsDoc);
+        }
 
         // Respond with the created innings
         httpResponse(req, res, 201, responseMessage.RESOURCE_CREATED('Innings'), inningsDoc);
     } catch (error) {
-        // Abort the transaction in case of error
-        await session.abortTransaction();
-        session.endSession();
         httpError(next, error, req, 500);
     }
 };
 
 /**
  * Retrieves all innings of a specific match.
+ * GET /api/admin/matches/:matchId/innings
  */
 export const getMatchInnings = async (req, res, next) => {
     try {
         const { matchId } = req.params;
 
-        const match = await Match.findById(matchId)
+        const innings = await Innings.find({ match_id: matchId })
             .populate({
-                path: 'innings',
-                select: '-__v', // Exclude unnecessary fields
-                populate: [
-                    { path: 'current_batsmen', select: '-__v' },
-                    { path: 'wicket_keeper', select: '-__v' },
-                    { path: 'current_bowler', select: '-__v' },
-                ],
+                path: 'current_batsmen',
+                populate: { path: 'player_id', select: 'name skill' },
+            })
+            .populate({
+                path: 'current_bowler',
+                populate: { path: 'player_id', select: 'name skill' },
+            })
+            .populate({
+                path: 'wicket_keeper',
+                populate: { path: 'player_id', select: 'name skill' },
             })
             .lean()
             .exec();
 
-        if (!match) {
-            httpResponse(req, res, 404, responseMessage.NOT_FOUND('Match'));
+        if (!innings || innings.length === 0) {
+            httpResponse(req, res, 404, responseMessage.NOT_FOUND('Innings'));
             return;
         }
 
-        httpResponse(req, res, 200, responseMessage.FETCHED('Innings'), match.innings);
+        httpResponse(req, res, 200, responseMessage.FETCHED('Innings'), innings);
     } catch (error) {
         httpError(next, error, req, 500);
     }
@@ -447,12 +615,13 @@ export const getMatchInnings = async (req, res, next) => {
 
 /**
  * Updates an innings based on the outcome of a ball.
+ * PATCH /api/admin/matches/:matchId/innings/:inningsId/ball
  */
 export const updateInnings = async (req, res, next) => {
     const session = await mongoose.startSession();
     session.startTransaction();
     try {
-        const { inningsId } = req.params;
+        const { inningsId, matchId } = req.params;
         const {
             outcome,
             bowler_id,
@@ -460,6 +629,7 @@ export const updateInnings = async (req, res, next) => {
             dismissal_type,
             next_batsman_id,
             next_batsman_strike_role, // 1 for striker, 2 for non-striker
+            customOutcome, // Object containing custom outcome details
         } = req.body;
 
         // Validate required fields
@@ -477,14 +647,36 @@ export const updateInnings = async (req, res, next) => {
             return;
         }
 
+        if (!outcome || typeof outcome !== 'string') {
+            httpError(next, new Error('Outcome is required and must be a string.'), req, 400);
+            await session.abortTransaction();
+            session.endSession();
+            return;
+        }
+
+        const ballOutcome = ballOutcomes[outcome] || customOutcome;
+
+        if (!ballOutcome) {
+            httpError(next, new Error('Invalid or undefined outcome value.'), req, 400);
+            await session.abortTransaction();
+            session.endSession();
+            return;
+        }
+
         // Fetch innings document with required references
         const innings = await Innings.findById(inningsId)
             .populate({
                 path: 'current_batsmen',
-                populate: { path: 'player_id' },
+                populate: { path: 'player_id', select: 'name skill' },
             })
-            .populate('current_bowler')
-            .populate('wicket_keeper')
+            .populate({
+                path: 'current_bowler',
+                populate: { path: 'player_id', select: 'name skill' },
+            })
+            .populate({
+                path: 'wicket_keeper',
+                populate: { path: 'player_id', select: 'name skill' },
+            })
             .session(session)
             .exec();
 
@@ -495,9 +687,17 @@ export const updateInnings = async (req, res, next) => {
             return;
         }
 
-        const ballOutcome = ballOutcomes[outcome];
-        if (!ballOutcome) {
-            httpError(next, new Error('Invalid outcome'), req, 400);
+        if (innings.status === 'completed') {
+            httpError(next, new Error('Cannot update a completed innings'), req, 400);
+            await session.abortTransaction();
+            session.endSession();
+            return;
+        }
+
+        // Fetch the match
+        const match = await Match.findById(matchId).session(session).exec();
+        if (!match) {
+            httpError(next, new Error('Match not found'), req, 404);
             await session.abortTransaction();
             session.endSession();
             return;
@@ -518,6 +718,8 @@ export const updateInnings = async (req, res, next) => {
                     penalty_runs: 0,
                     total: 0,
                 },
+                isDeclared: false,
+                isFollowOn: false,
             };
         }
 
@@ -553,51 +755,45 @@ export const updateInnings = async (req, res, next) => {
 
         // Update bowler's stats
         if (bowler_id) {
-            // If bowler_id has changed, update the current_bowler field
-            if (!innings.current_bowler || innings.current_bowler.player_id.toString() !== bowler_id) {
-                // Find or create the new bowler's Status document
-                let newBowlerStatus = await Status.findOne({
-                    player_id: bowler_id,
-                    match_id: innings.match_id,
-                    innings_number: innings.innings_number,
-                }).session(session).exec();
+            // Fetch the bowler's Status document
+            const bowlerStatus = await Status.findOne({
+                player_id: bowler_id,
+                match_id: matchId,
+                innings_number: innings.innings_number,
+            }).session(session).exec();
 
-                if (!newBowlerStatus) {
-                    newBowlerStatus = await Status.create(
-                        {
-                            player_id: bowler_id,
-                            match_id: innings.match_id,
-                            innings_number: innings.innings_number,
-                            // Initialize other fields as needed
-                        },
-                        { session }
-                    );
-                }
-
-                // Update innings.current_bowler
-                innings.current_bowler = newBowlerStatus._id;
+            if (!bowlerStatus) {
+                httpError(next, new Error('Bowler not found in Status documents.'), req, 400);
+                await session.abortTransaction();
+                session.endSession();
+                return;
             }
 
             // Update bowler's stats
+            const bowlerUpdates = {
+                'bowling.runs_conceded': ballOutcome.runs + (ballOutcome.extras || 0),
+                'bowling.overs_bowled': ballOutcome.ball_counts ? 1 / 6 : 0,
+                'bowling.wickets': ballOutcome.is_wicket ? 1 : 0,
+                'bowling.wides': outcome === 'wide' ? 1 : 0,
+                'bowling.no_balls': outcome === 'noball' ? 1 : 0,
+                'bowling.extras_conceded': ballOutcome.extras || 0,
+            };
+
+            if (ballOutcome.maidens) {
+                bowlerUpdates['bowling.maidens'] = 1;
+            }
+
             bulkOps.push({
                 updateOne: {
-                    filter: { _id: innings.current_bowler },
-                    update: {
-                        $inc: {
-                            bowlruns: ballOutcome.runs + (ballOutcome.extras || 0),
-                            bowled_overs: ballOutcome.ball_counts ? 1 / 6 : 0,
-                            wicket: ballOutcome.is_wicket ? 1 : 0,
-                            wideball: outcome === 'wide' ? 1 : 0,
-                            noball: outcome === 'noball' ? 1 : 0,
-                        },
-                    },
+                    filter: { _id: bowlerStatus._id },
+                    update: { $inc: bowlerUpdates },
                 },
             });
         }
 
         // Identify the striker
-        const striker = innings.current_batsmen.find((batsman) => batsman.stricking_role === 1);
-        if (!striker) {
+        const strikerStatus = innings.current_batsmen.find((batsman) => batsman.batting.stricking_role === 1);
+        if (!strikerStatus) {
             httpError(next, new Error('Striker not found'), req, 400);
             await session.abortTransaction();
             session.endSession();
@@ -605,18 +801,69 @@ export const updateInnings = async (req, res, next) => {
         }
 
         // Update striker's stats
+        const strikerUpdates = {
+            'batting.runs': ballOutcome.runs,
+            'batting.balls_faced': ballOutcome.ball_counts ? 1 : 0,
+        };
+
+        if (ballOutcome.runs === 4) {
+            strikerUpdates['batting.fours'] = 1;
+        }
+        if (ballOutcome.runs === 6) {
+            strikerUpdates['batting.sixes'] = 1;
+        }
+
         bulkOps.push({
             updateOne: {
-                filter: { _id: striker._id },
-                update: {
-                    $inc: {
-                        bat_run: ballOutcome.runs,
-                        played_ball: ballOutcome.ball_counts ? 1 : 0,
-                        hitted_fours: ballOutcome.runs === 4 ? 1 : 0,
-                        hitted_sixes: ballOutcome.runs === 6 ? 1 : 0,
-                    },
-                },
+                filter: { _id: strikerStatus._id },
+                update: { $inc: strikerUpdates },
             },
+        });
+
+        // Generate commentary based on outcome
+        let description = '';
+
+        if (ballOutcome.description) {
+            description += ballOutcome.description;
+        } else {
+            switch (outcome) {
+                case 'run':
+                    description += `${strikerStatus.player_id.name} scored ${ballOutcome.runs} run(s).`;
+                    break;
+                case 'four':
+                    description += `${strikerStatus.player_id.name} hit a four!`;
+                    break;
+                case 'six':
+                    description += `${strikerStatus.player_id.name} hit a six!`;
+                    break;
+                case 'wide':
+                    description += `Wide ball bowled by ${bowlerStatus.player_id.name}.`;
+                    break;
+                case 'noball':
+                    description += `No ball bowled by ${bowlerStatus.player_id.name}.`;
+                    break;
+                case 'wicket':
+                    description += `${strikerStatus.player_id.name} is out (${dismissal_type}) bowled by ${bowlerStatus.player_id.name}.`;
+                    break;
+                case 'custom':
+                    description += ballOutcome.customDescription || 'Custom outcome occurred.';
+                    break;
+                default:
+                    description += `Ball outcome: ${outcome}.`;
+            }
+        }
+
+        // Append any additional commentary from the custom outcome
+        if (ballOutcome.additionalCommentary) {
+            description += ` ${ballOutcome.additionalCommentary}`;
+        }
+
+        // Add commentary to innings
+        innings.commentary.push({
+            over: Math.floor(innings.score.balls / 6) + 1,
+            ball: innings.score.balls % 6 || 6,
+            description,
+            timestamp: new Date(),
         });
 
         // Handle wicket
@@ -626,39 +873,46 @@ export const updateInnings = async (req, res, next) => {
             // Update striker's out details
             bulkOps.push({
                 updateOne: {
-                    filter: { _id: striker._id },
+                    filter: { _id: strikerStatus._id },
                     update: {
                         $set: {
-                            out_type: dismissal_type || ballOutcome.dismissal_info || 'Out',
-                            bowler_when_out: bowler_id || null,
-                            stricking_role: 0, // Indicate out
+                            'batting.out_type': dismissal_type || 'Out',
+                            'batting.bowler_when_out': bowler_id || null,
+                            'batting.stricking_role': 0, // Indicate out
                         },
                     },
                 },
             });
 
-            // Update fielder's stats
+            // Update fielder's stats if applicable
             if (fielder_id && dismissal_type) {
-                const fielderUpdate = {};
-                if (dismissal_type === 'caught') {
-                    fielderUpdate.catches = 1;
-                } else if (dismissal_type === 'stumped') {
-                    fielderUpdate.stumpings = 1;
-                }
-                // Add more dismissal types as needed
+                const fielderStatus = await Status.findOne({
+                    player_id: fielder_id,
+                    match_id: matchId,
+                    innings_number: innings.innings_number,
+                }).session(session).exec();
 
-                if (Object.keys(fielderUpdate).length > 0) {
+                if (!fielderStatus) {
+                    httpError(next, new Error('Fielder not found in Status documents.'), req, 400);
+                    await session.abortTransaction();
+                    session.endSession();
+                    return;
+                }
+
+                const fielderUpdates = {};
+
+                if (dismissal_type === 'caught') {
+                    fielderUpdates['fielding.catches'] = 1;
+                } else if (dismissal_type === 'stumped') {
+                    fielderUpdates['fielding.stumpings'] = 1;
+                }
+                // Add more dismissal types if needed
+
+                if (Object.keys(fielderUpdates).length > 0) {
                     bulkOps.push({
                         updateOne: {
-                            filter: {
-                                player_id: fielder_id,
-                                match_id: innings.match_id,
-                                innings_number: innings.innings_number,
-                            },
-                            update: {
-                                $inc: fielderUpdate,
-                            },
-                            upsert: true,
+                            filter: { _id: fielderStatus._id },
+                            update: { $inc: fielderUpdates },
                         },
                     });
                 }
@@ -666,36 +920,68 @@ export const updateInnings = async (req, res, next) => {
 
             // Remove striker from current_batsmen
             innings.current_batsmen = innings.current_batsmen.filter(
-                (batsman) => batsman.stricking_role !== 0
+                (batsman) => batsman._id.toString() !== strikerStatus._id.toString()
             );
 
-            // Add next batsman from frontend
+            // Add next batsman
             if (next_batsman_id) {
-                const nextBatsmanStatus = await Status.create(
-                    {
+                // Ensure next batsman is part of the batting order
+                if (!innings.batting_order.map(id => id.toString()).includes(next_batsman_id.toString())) {
+                    httpError(next, new Error('Next batsman is not in the batting order.'), req, 400);
+                    await session.abortTransaction();
+                    session.endSession();
+                    return;
+                }
+
+                // Find or create the next batsman's Status document
+                let nextBatsmanStatus = await Status.findOne({
+                    player_id: next_batsman_id,
+                    match_id: matchId,
+                    innings_number: innings.innings_number,
+                }).session(session).exec();
+
+                if (!nextBatsmanStatus) {
+                    // Create a new Status document for the next batsman
+                    nextBatsmanStatus = await Status.create([{
                         player_id: next_batsman_id,
-                        match_id: innings.match_id,
+                        match_id: matchId,
                         innings_number: innings.innings_number,
-                        stricking_role: next_batsman_strike_role,
-                        // Initialize other fields as needed
-                    },
-                    { session }
-                );
-
-                innings.current_batsmen.push(nextBatsmanStatus._id);
-
-                // Adjust the existing non-striker's role if needed
-                innings.current_batsmen.forEach((batsman) => {
-                    if (batsman.toString() !== nextBatsmanStatus._id.toString()) {
-                        const newRole = next_batsman_strike_role === 1 ? 2 : 1;
+                        batting: {
+                            stricking_role: next_batsman_strike_role,
+                        },
+                        fielding: {
+                            catches: 0,
+                            stumpings: 0,
+                        },
+                    }], { session });
+                } else {
+                    // Update the stricking_role if it doesn't match
+                    if (nextBatsmanStatus.batting.stricking_role !== next_batsman_strike_role) {
                         bulkOps.push({
                             updateOne: {
-                                filter: { _id: batsman },
-                                update: { $set: { stricking_role: newRole } },
+                                filter: { _id: nextBatsmanStatus._id },
+                                update: { 'batting.stricking_role': next_batsman_strike_role },
                             },
                         });
                     }
-                });
+                }
+
+                // Add the next batsman to current_batsmen
+                innings.current_batsmen.push(nextBatsmanStatus);
+
+                // Adjust the existing non-striker's role if needed
+                const existingNonStriker = innings.current_batsmen.find(batsman => batsman.batting.stricking_role === 2);
+                if (existingNonStriker) {
+                    const desiredRole = next_batsman_strike_role === 1 ? 2 : 1;
+                    if (existingNonStriker.batting.stricking_role !== desiredRole) {
+                        bulkOps.push({
+                            updateOne: {
+                                filter: { _id: existingNonStriker._id },
+                                update: { 'batting.stricking_role': desiredRole },
+                            },
+                        });
+                    }
+                }
             } else {
                 httpError(next, new Error('Next batsman ID must be provided when a wicket falls'), req, 400);
                 await session.abortTransaction();
@@ -703,30 +989,172 @@ export const updateInnings = async (req, res, next) => {
                 return;
             }
         } else {
-            // Swap strike if runs are odd
+            // Handle strike rotation based on runs
             if (ballOutcome.ball_counts && ballOutcome.runs % 2 !== 0) {
                 innings.current_batsmen.forEach((batsman) => {
-                    batsman.stricking_role = batsman.stricking_role === 1 ? 2 : 1;
+                    const newRole = batsman.batting.stricking_role === 1 ? 2 : 1;
                     bulkOps.push({
                         updateOne: {
                             filter: { _id: batsman._id },
-                            update: { $set: { stricking_role: batsman.stricking_role } },
+                            update: { 'batting.stricking_role': newRole },
                         },
                     });
                 });
             }
 
-            // Swap strike at the end of the over
+            // Handle strike rotation at the end of the over
             if (ballOutcome.ball_counts && innings.score.balls % 6 === 0) {
                 innings.current_batsmen.forEach((batsman) => {
-                    batsman.stricking_role = batsman.stricking_role === 1 ? 2 : 1;
+                    const newRole = batsman.batting.stricking_role === 1 ? 2 : 1;
                     bulkOps.push({
                         updateOne: {
                             filter: { _id: batsman._id },
-                            update: { $set: { stricking_role: batsman.stricking_role } },
+                            update: { 'batting.stricking_role': newRole },
                         },
                     });
                 });
+
+                // Check if target is achieved in the second innings
+                if (innings.innings_number === 2 && match.target_runs) {
+                    if (innings.score.runs >= match.target_runs) {
+                        innings.status = 'completed';
+                        match.winner = match.batting_team_id;
+
+                        innings.endTime = new Date();
+                        match.status = 'completed';
+                        match.endTime = new Date();
+
+                        await match.save({ session });
+
+                        innings.commentary.push({
+                            over: Math.floor(innings.score.balls / 6) + 1,
+                            ball: innings.score.balls % 6 || 6,
+                            description: `${match.batting_team_id} has reached the target and wins the match!`,
+                            timestamp: new Date(),
+                        });
+                    }
+                }
+            }
+        }
+
+        // Check for match completion conditions
+        if (ballOutcome.ball_counts) {
+            const totalBalls = innings.score.balls;
+            const maxBalls = match.overs * 6;
+
+            // If overs are completed
+            if (totalBalls >= maxBalls) {
+                innings.status = 'completed';
+                innings.endTime = new Date();
+
+                if (innings.innings_number === 1) {
+                    match.target_runs = innings.score.runs + 1;
+                    await match.save({ session });
+
+                    innings.commentary.push({
+                        over: Math.floor(totalBalls / 6) + 1,
+                        ball: totalBalls % 6 || 6,
+                        description: `Innings 1 completed. Target for Innings 2 is ${match.target_runs} runs.`,
+                        timestamp: new Date(),
+                    });
+                } else if (innings.innings_number === 2) {
+                    if (innings.score.runs > match.target_runs) {
+                        match.winner = match.batting_team_id;
+                    } else if (innings.score.runs < match.target_runs) {
+                        match.winner = match.bowling_team_id;
+                    } else {
+                        match.winner = 'Tie';
+                    }
+
+                    match.status = 'completed';
+                    match.endTime = new Date();
+
+                    await match.save({ session });
+
+                    if (match.winner === 'Tie') {
+                        innings.commentary.push({
+                            over: Math.floor(totalBalls / 6) + 1,
+                            ball: totalBalls % 6 || 6,
+                            description: `The match is tied! Both teams have scored ${innings.score.runs} runs.`,
+                            timestamp: new Date(),
+                        });
+                    } else {
+                        innings.commentary.push({
+                            over: Math.floor(totalBalls / 6) + 1,
+                            ball: totalBalls % 6 || 6,
+                            description: `${match.winner} wins the match!`,
+                            timestamp: new Date(),
+                        });
+                    }
+                }
+            }
+
+            // If all wickets have fallen
+            if (innings.score.wickets >= 10) {
+                innings.status = 'completed';
+                innings.endTime = new Date();
+
+                if (innings.innings_number === 1) {
+                    match.target_runs = innings.score.runs + 1;
+                    await match.save({ session });
+
+                    innings.commentary.push({
+                        over: Math.floor(totalBalls / 6) + 1,
+                        ball: totalBalls % 6 || 6,
+                        description: `Innings 1 completed. Target for Innings 2 is ${match.target_runs} runs.`,
+                        timestamp: new Date(),
+                    });
+                } else if (innings.innings_number === 2) {
+                    if (innings.score.runs > match.target_runs) {
+                        match.winner = match.batting_team_id;
+                    } else if (innings.score.runs < match.target_runs) {
+                        match.winner = match.bowling_team_id;
+                    } else {
+                        match.winner = 'Tie';
+                    }
+
+                    match.status = 'completed';
+                    match.endTime = new Date();
+
+                    await match.save({ session });
+
+                    if (match.winner === 'Tie') {
+                        innings.commentary.push({
+                            over: Math.floor(totalBalls / 6) + 1,
+                            ball: totalBalls % 6 || 6,
+                            description: `The match is tied! Both teams have scored ${innings.score.runs} runs.`,
+                            timestamp: new Date(),
+                        });
+                    } else {
+                        innings.commentary.push({
+                            over: Math.floor(totalBalls / 6) + 1,
+                            ball: totalBalls % 6 || 6,
+                            description: `${match.winner} wins the match!`,
+                            timestamp: new Date(),
+                        });
+                    }
+                }
+            }
+
+            // If target is achieved before overs or wickets are up
+            if (innings.innings_number === 2 && match.target_runs) {
+                if (innings.score.runs >= match.target_runs) {
+                    innings.status = 'completed';
+                    match.winner = match.batting_team_id;
+
+                    innings.endTime = new Date();
+                    match.status = 'completed';
+                    match.endTime = new Date();
+
+                    await match.save({ session });
+
+                    innings.commentary.push({
+                        over: Math.floor(totalBalls / 6) + 1,
+                        ball: totalBalls % 6 || 6,
+                        description: `${match.batting_team_id} has reached the target and wins the match!`,
+                        timestamp: new Date(),
+                    });
+                }
             }
         }
 
@@ -743,7 +1171,8 @@ export const updateInnings = async (req, res, next) => {
         session.endSession();
 
         // Emit socket event if using sockets (optional)
-        if (typeof io !== 'undefined') {
+        const io = req.app.get('io');
+        if (io) {
             io.emit('innings-updated', {
                 matchId: innings.match_id,
                 inningsId,
@@ -754,7 +1183,6 @@ export const updateInnings = async (req, res, next) => {
         // Respond with the updated innings
         httpResponse(req, res, 200, responseMessage.UPDATED('Innings'), innings);
     } catch (error) {
-        // Abort the transaction in case of error
         await session.abortTransaction();
         session.endSession();
         httpError(next, error, req, 500);

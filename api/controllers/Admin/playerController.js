@@ -1,4 +1,4 @@
-import { CricketPlayer } from "../../../db/model/index.js";
+import { CricketPlayer, Team } from "../../../db/model/index.js";
 
 import httpResponse from "../../../utils/httpResponse.js";
 import httpError from "../../../utils/httpError.js";
@@ -60,50 +60,90 @@ import logger from "../../../utils/logger.js";
  */
 export const addPlayer = async (req, res, next) => {
     try {
-        // Extract fields from the request body
-        const { player_name, department, skill } = req.body;
+        // Extract 'players' from the request body
+        let { players } = req.body;
 
-        // Validate required fields
-        if (!player_name || !department || !skill) {
-            httpError(next, new Error(responseMessage.MISSING_FILEDS), req, 400);
+        // If 'players' is not provided, return an error
+        if (!players) {
+            httpError(next, new Error('All required fields must be provided'), req, 400);
             return;
         }
 
-        // Validate the skill object
-        const { error, value } = playerValidator.validate(skill);
-        if (error) {
-            httpError(next, new Error(error.message), req, 400);
-            return;
+        // Normalize 'players' to an array for uniform processing
+        if (!Array.isArray(players)) {
+            players = [players];
         }
 
-        // Check for duplicate player
-        const exists = await CricketPlayer.findOne({ player_name });
-        if (exists) {
-            httpError(
-                next,
-                new Error(responseMessage.RESOURCE_ALREADY_EXISTS("Player")),
-                req,
-                400
-            );
-            return;
+        // Prepare an array to hold successfully created players
+        const createdPlayers = [];
+
+        // Iterate over each player object
+        for (const player of players) {
+            const { player_name, department, skill, team_id } = player;
+
+            // Validate required fields
+            if (!player_name || !department || !skill) {
+                httpError(next, new Error(responseMessage.MISSING_FIELDS), req, 400);
+                return;
+            }
+
+            // Validate the 'skill' object using the playerValidator
+            const { error, value } = playerValidator.validate(skill);
+            if (error) {
+                httpError(next, new Error(error.message), req, 400);
+                return;
+            }
+
+            // Check for duplicate player by 'player_name'
+            const exists = await CricketPlayer.findOne({ player_name });
+            if (exists) {
+                httpError(
+                    next,
+                    new Error(responseMessage.RESOURCE_ALREADY_EXISTS("Player", player_name)),
+                    req,
+                    400
+                );
+                return;
+            }
+
+            // Create the player
+            const newPlayer = await CricketPlayer.create({
+                player_name,
+                department,
+                skill: value, // Use the validated 'skill' object
+                team_id: team_id || null // Assign 'team_id' if provided, else null
+            });
+
+            // If 'team_id' is provided, add the player to the team's player array
+            if (team_id) {
+                const team = await Team.findById(team_id);
+                if (!team) {
+                    httpError(next, new Error(`Team with ID ${team_id} not found`), req, 404);
+                    return;
+                }
+
+                team.players.push(newPlayer._id);
+                await team.save();
+            }
+
+            // Push the created player to the 'createdPlayers' array
+            createdPlayers.push({
+                player_name: newPlayer.player_name,
+                department: newPlayer.department,
+                skill: newPlayer.skill,
+                team_id: newPlayer.team_id
+            });
         }
 
-        // Create the player
-        const player = await CricketPlayer.create({
-            player_name,
-            department,
-            skill,
-        });
+        // Determine the response message and data based on the number of players added
+        if (createdPlayers.length === 1) {
+            httpResponse(req, res, 201, responseMessage.USER_CREATED, createdPlayers[0]);
+        } else {
+            httpResponse(req, res, 201, responseMessage.RESOURCE_CREATED(`${createdPlayers.length} Players`), createdPlayers);
+        }
 
-        // Respond with success
-        httpResponse(req, res, 201, responseMessage.USER_CREATED, {
-            player: {
-                player_name: player.player_name,
-                department: player.department,
-                skill: player.skill,
-            },
-        });
     } catch (error) {
+        // Handle unexpected errors
         httpError(next, error, req, 500);
     }
 };
@@ -283,43 +323,43 @@ export const getPlayer = async (req, res, next) => {
  */
 export const putPlayer = async (req, res, next) => {
     // try {
-        // Validate player ID
-        const playerId = req.params.id;
-        if (!playerId) {
-            return httpError(next, new Error("Player ID is required"), req, 400);
-        }
+    // Validate player ID
+    const playerId = req.params.id;
+    if (!playerId) {
+        return httpError(next, new Error("Player ID is required"), req, 400);
+    }
 
-        const { player_name, department, skill } = req.body;
-        logger.info(`Updating player ${playerId} with data:`,{
+    const { player_name, department, skill } = req.body;
+    logger.info(`Updating player ${playerId} with data:`, {
+        player_name,
+        department,
+        skill
+    });
+
+    // Replace the player's details
+    const updatedPlayer = await CricketPlayer.findByIdAndUpdate(
+        playerId,
+        {
             player_name,
             department,
             skill
-        });
-
-        // Replace the player's details
-        const updatedPlayer = await CricketPlayer.findByIdAndUpdate(
-            playerId,
-            {
-                player_name,
-                department,
-                skill
-            },
-            {
-                new: true, // Return the updated document
-                runValidators: true, // Enforce schema validation
-            }
-        );
-
-        // Handle player not found
-        if (!updatedPlayer) {
-            return httpError(next, new Error("Player not found"), req, 404);
+        },
+        {
+            new: true, // Return the updated document
+            runValidators: true, // Enforce schema validation
         }
+    );
 
-        // Respond with the updated player data
-        httpResponse(req, res, 200, responseMessage.UPDATED("Player"), {
-            name: updatedPlayer.player_name,
-            department: updatedPlayer.department,
-        });
+    // Handle player not found
+    if (!updatedPlayer) {
+        return httpError(next, new Error("Player not found"), req, 404);
+    }
+
+    // Respond with the updated player data
+    httpResponse(req, res, 200, responseMessage.UPDATED("Player"), {
+        name: updatedPlayer.player_name,
+        department: updatedPlayer.department,
+    });
     // } catch (error) {
     //     httpError(next, error, req, 500);
     // }

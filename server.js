@@ -15,6 +15,7 @@ const io = new Server(server, {
         methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT'],
     },
 });
+app.set('io', io);
 
 io.on('connection', (socket) => {
     logger.info(`Client connected: ${socket.id}`);
@@ -31,5 +32,3 @@ server.listen(PORT, async () => {
         url: `http://localhost:${PORT}`,
     });
 });
-
-export { io };

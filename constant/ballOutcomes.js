@@ -1,3 +1,4 @@
+
 const ballOutcomes = Object.freeze({
   dot: Object.freeze({
     runs: 0,
@@ -82,6 +83,13 @@ const ballOutcomes = Object.freeze({
     is_wicket: false,
     description: 'Leg bye run',
     ball_counts: true,
+  }),
+  custom: Object.freeze({
+    runs: 0, 
+    extras: 0, 
+    is_wicket: false, 
+    description: '', 
+    ball_counts: true, 
   }),
 });
 
