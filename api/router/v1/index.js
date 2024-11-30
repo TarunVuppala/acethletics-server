@@ -12,8 +12,13 @@ import express from 'express';
 import adminRouter from './Admin/adminRouter.js';
 import playerRouter from './Admin/playerRouter.js';
 import tournamentRouter from './Admin/tournamentRouter.js';
+import adminAuth from '../../../middleware/adminAuth.js';
+import httpResponse from '../../../utils/httpResponse.js';
 
 const router = express.Router();
+router.use('/verify', adminAuth, (req, res) => {
+    httpResponse(req, res, 200, 'success', { message: "Welcome!!" });
+});
 
 /**
  * Admin Router.

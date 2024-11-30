@@ -70,6 +70,13 @@ const MatchSchema = new mongoose.Schema({
     },
 }, { timestamps: true });
 
+MatchSchema.pre('save', function (next) {
+    if (this.commentary.length > 20) {
+        this.commentary = this.commentary.slice(this.commentary.length - 20);
+    }
+    next();
+});
+
 const InningsSchema = new mongoose.Schema({
     match_id: {
         type: mongoose.Schema.Types.ObjectId,
@@ -147,56 +154,4 @@ MatchSchema.plugin(mongooseAutopopulate);
 
 const Innings = mongoose.model('Innings', InningsSchema);
 const Match = mongoose.model('Match', MatchSchema);
-
-/**
- * ----------------------------
- *          Status Schema
- * ----------------------------
- */
-const PlayerStatusSchema = new mongoose.Schema({
-    player_id: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'CricketPlayer',
-        required: true,
-        immutable: true,
-        index: true,
-        autopopulate: { maxDepth: 1, select: 'name skill' },
-    },
-    match_id: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Match',
-        required: true,
-        index: true,
-    },
-    innings_number: {
-        type: Number,
-        required: true,
-        enum: [1, 2],
-    },
-    batting: {
-        runs: { type: Number, default: 0 },
-        balls_faced: { type: Number, default: 0 },
-        fours: { type: Number, default: 0 },
-        sixes: { type: Number, default: 0 },
-        out_type: { type: String, default: null },
-        bowler_when_out: { type: mongoose.Schema.Types.ObjectId, ref: 'Status', default: null },
-        stricking_role: { type: Number, enum: [0, 1, 2], default: null }, // 0 for out, 1 for striker, 2 for non-striker
-    },
-    bowling: {
-        runs_conceded: { type: Number, default: 0 },
-        overs_bowled: { type: Number, default: 0 },
-        wickets: { type: Number, default: 0 },
-        wides: { type: Number, default: 0 },
-        no_balls: { type: Number, default: 0 },
-    },
-    fielding: {
-        catches: { type: Number, default: 0 },
-        stumpings: { type: Number, default: 0 },
-    },
-}, { timestamps: true });
-
-PlayerStatusSchema.plugin(mongooseAutopopulate);
-
-const Status = mongoose.model('Status', PlayerStatusSchema);
-
-export { Match, Innings, Status };
+export { Match, Innings };
