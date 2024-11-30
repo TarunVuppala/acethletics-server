@@ -39,7 +39,6 @@ export const setCookie = (res, name, value) => {
         httpOnly: true, // Prevents JavaScript access to the cookie
         secure: config.ENV === 'production', // Enables Secure flag in production
         sameSite: config.ENV === 'production' ? 'lax' : 'strict', // Lax for cross-origin requests in production
-        domain: config.ENV === 'production' ? 'https://acethletics-server.onrender.com' : undefined, // Share cookies across subdomains
         maxAge: 1 * 24 * 60 * 60 * 1000, // Cookie expiration: 1 day
         path: '/', // Available across the entire site
     });
