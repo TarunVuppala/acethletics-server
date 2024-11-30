@@ -10,6 +10,7 @@
 import { getUser } from '../utils/authToken.js';
 import { getCookie } from '../utils/cookieHandler.js';
 import httpError from '../utils/httpError.js';
+import logger from '../utils/logger.js';
 
 /**
  * Middleware to authenticate requests.
@@ -36,6 +37,7 @@ import httpError from '../utils/httpError.js';
 function adminAuth(req, res, next) {
     // Retrieve the token from cookies
     const token = getCookie(req, 'token'); // Specify the cookie name explicitly
+    logger.info("req.cookies", req.cookies);
 
     if (token) {
         // Validate and decode the token
