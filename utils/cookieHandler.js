@@ -19,14 +19,15 @@ import config from '../config/config.js';
  *
  * @description
  * - Configures the cookie with the following properties:
- *   - `httpOnly`: Ensures the cookie is accessible only via HTTP requests, protecting against XSS attacks.
+ *   - `httpOnly`: Ensures the cookie is accessible only via HTTP requests.
  *   - `secure`: Enables the Secure flag (HTTPS-only) in production environments.
- *   - `sameSite`: Prevents cross-site request forgery (CSRF) attacks by restricting the cookie's context to the same site.
+ *   - `sameSite`: Adjusts based on environment (`strict` for same-site, `lax` for cross-origin).
+ *   - `domain`: Optional, allows sharing cookies across subdomains in production.
  *   - `maxAge`: Sets the cookie's expiration time to 1 day.
  *
  * @example
  * import { setCookie } from './utils/cookieHandler.js';
- * 
+ *
  * app.post('/login', (req, res) => {
  *   const token = 'some-auth-token';
  *   setCookie(res, 'token', token);
@@ -37,8 +38,10 @@ export const setCookie = (res, name, value) => {
     res.cookie(name, value, {
         httpOnly: true, // Prevents JavaScript access to the cookie
         secure: config.ENV === 'production', // Enables Secure flag in production
-        sameSite: 'strict', // Restricts cookie access to the same site
+        sameSite: config.ENV === 'production' ? 'lax' : 'strict', // Lax for cross-origin requests in production
+        domain: config.ENV === 'production' ? '.yourdomain.com' : undefined, // Share cookies across subdomains
         maxAge: 1 * 24 * 60 * 60 * 1000, // Cookie expiration: 1 day
+        path: '/', // Available across the entire site
     });
 };
 
@@ -52,7 +55,7 @@ export const setCookie = (res, name, value) => {
  *
  * @example
  * import { getCookie } from './utils/cookieHandler.js';
- * 
+ *
  * app.get('/profile', (req, res) => {
  *   const token = getCookie(req, 'token');
  *   if (token) {
