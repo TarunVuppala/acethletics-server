@@ -6,7 +6,7 @@ import httpResponse from '../../../utils/httpResponse.js';
 import httpError from '../../../utils/httpError.js';
 
 import { setToken } from '../../../utils/authToken.js';
-import { setCookie } from '../../../utils/cookieHandler.js';
+// import { setCookie } from '../../../utils/cookieHandler.js';
 
 /**
  * Controller for handling admin login.
@@ -72,7 +72,7 @@ export const adminLogin = async (req, res, next) => {
         const token = setToken({ username: admin.username, role: admin.role });
 
         // Set the token as a cookie in the response
-        setCookie(res, 'token', token);
+        // setCookie(res, 'token', token);
 
         // Respond with success and admin details
         httpResponse(req, res, 201, responseMessage.LOGIN_SUCCESS, {
