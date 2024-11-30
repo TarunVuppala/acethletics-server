@@ -11,7 +11,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: ['http://localhost:3000', 'https://acetheletics.aceec.ac.in'],
+        origin: ['http://localhost:3000', 'https://acetheletics.aceec.ac.in', 'https://acethletics-server.onrender.com'],
         methods: ['GET', 'POST', 'PATCH', 'DELETE', 'PUT'],
     },
 });
