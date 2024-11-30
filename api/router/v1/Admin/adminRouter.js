@@ -11,6 +11,9 @@ import adminAuth from '../../../../middleware/adminAuth.js';
 import httpResponse from '../../../../utils/httpResponse.js';
 
 const router = express.Router();
+router.use('/verify', adminAuth, (req, res) => {
+    httpResponse(req, res, 200, 'success', { message: "Welcome!!" });
+});
 
 /**
  * Route to log in as an admin.
