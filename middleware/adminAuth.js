@@ -37,7 +37,6 @@ import logger from '../utils/logger.js';
 function adminAuth(req, res, next) {
     // Retrieve the token from cookies
     const token = getCookie(req, 'token'); // Specify the cookie name explicitly
-    logger.info("req.cookies", req.cookies);
 
     if (token) {
         // Validate and decode the token

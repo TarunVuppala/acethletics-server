@@ -80,6 +80,7 @@ export const adminLogin = async (req, res, next) => {
                 username: admin.username,
             },
             role: admin.role,
+            token
         });
     } catch (error) {
             httpError(next, error, req, 500);
