@@ -10,7 +10,6 @@
 import { getUser } from '../utils/authToken.js';
 import { getCookie } from '../utils/cookieHandler.js';
 import httpError from '../utils/httpError.js';
-import logger from '../utils/logger.js';
 
 /**
  * Middleware to authenticate requests.
@@ -42,9 +41,6 @@ function adminAuth(req, res, next) {
         // Validate and decode the token
         const payload = getUser(token);
 
-        // Log the payload for debugging purposes
-        logger.info('Payload', { payload });
-
         if (payload) {
             // Attach the decoded user payload to the request object
             req.user = payload;
@@ -55,7 +51,7 @@ function adminAuth(req, res, next) {
         }
     } else {
         // Token is missing
-        httpError(next, new Error('Unauthorized'), req, 401);
+        httpError(next, new Error('Unauthorized!!! Token Missing.'), req, 401);
     }
 }
 

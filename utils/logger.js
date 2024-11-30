@@ -90,7 +90,7 @@ const fileLogFormat = format.printf((info) => {
  * @returns {Array<import('winston').transport>} Array of Winston transports for console logging.
  */
 const consoleTransport = () => {
-    if (config.ENV === EApplicationEnvironment.DEVELOPMENT) {
+    // if (config.ENV === EApplicationEnvironment.DEVELOPMENT) {}
         return [
             new transports.Console({
                 level: 'info',
@@ -101,7 +101,6 @@ const consoleTransport = () => {
                 ),
             }),
         ];
-    }
 
     return [];
 };
