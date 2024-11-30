@@ -8,7 +8,6 @@
  */
 
 import { getUser } from '../utils/authToken.js';
-import { getCookie } from '../utils/cookieHandler.js';
 import httpError from '../utils/httpError.js';
 import logger from '../utils/logger.js';
 
@@ -20,25 +19,31 @@ import logger from '../utils/logger.js';
  * @param {Object} res - The HTTP response object.
  * @param {Function} next - The next middleware function in the stack.
  * @description
- * - Retrieves the authentication token from cookies.
+ * - Checks the `Authorization` header for a Bearer token.
  * - Decodes and validates the token to extract user details.
  * - Attaches the user payload to `req.user` if the token is valid.
  * - Throws an unauthorized error (401) if the token is missing or invalid.
  *
  * @example
- * import auth from './middleware/adminauth.js';
+ * import adminAuth from './middleware/adminauth.js';
  *
- * app.use('/protected-route', adminauth, (req, res) => {
+ * app.use('/protected-route', adminAuth, (req, res) => {
  *   // Protected route logic
  * });
  *
  * @throws {401 Unauthorized} If the token is missing or invalid.
  */
 function adminAuth(req, res, next) {
-    // Retrieve the token from cookies
-    const token = getCookie(req, 'token'); // Specify the cookie name explicitly
+    try {
+        // Retrieve the token from the Authorization header
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return httpError(next, new Error('Unauthorized! Token Missing.'), req, 401);
+        }
 
-    if (token) {
+        // Extract the token
+        const token = authHeader.split(' ')[1];
+
         // Validate and decode the token
         const payload = getUser(token);
 
@@ -48,11 +53,11 @@ function adminAuth(req, res, next) {
             next();
         } else {
             // Token is invalid
-            httpError(next, new Error('Unauthorized'), req, 401);
+            return httpError(next, new Error('Unauthorized! Invalid Token.'), req, 401);
         }
-    } else {
-        // Token is missing
-        httpError(next, new Error('Unauthorized!!! Token Missing.'), req, 401);
+    } catch (error) {
+        logger.error(`Auth Middleware Error: ${error.message}`);
+        httpError(next, new Error('Unauthorized!'), req, 401);
     }
 }
 
