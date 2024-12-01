@@ -1161,6 +1161,7 @@ export const updateInnings = async (req, res, next) => {
 
         // Perform all bulk operations in a single bulkWrite
         if (bulkOps.length > 0) {
+            logger.info("bulkOps", bulkOps);
             await Status.bulkWrite(bulkOps, { session });
         }
 
