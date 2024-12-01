@@ -666,7 +666,8 @@ export const updateInnings = async (req, res, next) => {
 
         // Fetch innings document with required references
         const innings = await Innings.findById(inningsId)
-            .populate({
+            .populate(
+                {
                 path: 'current_batsmen',
                 populate: { path: 'player_id', select: 'name skill' },
             })
@@ -757,9 +758,12 @@ export const updateInnings = async (req, res, next) => {
         // Update bowler's stats
         // Fetch the bowler's Status document
         const bowlerId =
-            bowler_id instanceof mongoose.Types.ObjectId
+            bowler_id && innings.current_bowler !== bowler_id
                 ? bowler_id
-                : mongoose.Types.ObjectId(bowler_id || innings.current_bowler.player_id);
+                : innings.current_bowler;
+
+        console.log('bowlerId', bowlerId);
+
 
         const bowlerStatus = await Status.findOne({
             player_id: bowlerId,
@@ -769,26 +773,37 @@ export const updateInnings = async (req, res, next) => {
             .session(session)
             .exec();
 
-
-
         if (!bowlerStatus) {
-            const newBowlerStatus = new Status({
-                player_id: bowler_id || innings.current_bowler.player_id,
-                match_id: matchId,
-                innings_number: innings.innings_number,
-                bowling: {
-                    runs_conceded: ballOutcome.runs + (ballOutcome.extras || 0),
-                    overs_bowled: ballOutcome.ball_counts ? 1 / 6 : 0,
-                    wickets: ballOutcome.is_wicket ? 1 : 0,
-                    wides: outcome === 'wide' ? 1 : 0,
-                    no_balls: outcome === 'noball' ? 1 : 0,
-                    extras_conceded: ballOutcome.extras || 0,
-                },
-            });
-            await newBowlerStatus.save({ session });
-            innings.current_bowler = newBowlerStatus.player_id;
-            await innings.save({ session });
+            // Create a new bowler status object using Status.create()
+            try {
+                const newBowlerStatus = await Status.create({
+                    player_id: innings.current_bowler,  // Ensure this refers to a player
+                    match_id: matchId,
+                    innings_number: innings.innings_number,
+                    bowling: {
+                        runs_conceded: ballOutcome.runs + (ballOutcome.extras || 0),
+                        overs_bowled: ballOutcome.ball_counts ? 1 / 6 : 0,
+                        wickets: ballOutcome.is_wicket ? 1 : 0,
+                        wides: outcome === 'wide' ? 1 : 0,
+                        no_balls: outcome === 'noball' ? 1 : 0,
+                        extras_conceded: ballOutcome.extras || 0,
+                    },
+                }, { session });
+
+                // Ensure the _id is available and assign it to current_bowler
+                innings.current_bowler = newBowlerStatus._id;  // Assigning the _id to current_bowler
+
+                // Save innings document with updated current_bowler
+                await innings.save({ session });
+
+            } catch (error) {
+                console.error('Error creating bowler status or innings:', error);
+                throw new Error('Failed to create bowler status or innings.');
+            }
         }
+
+
+
 
 
         // Update bowler's stats
@@ -813,7 +828,10 @@ export const updateInnings = async (req, res, next) => {
         });
 
         // Identify the striker
-        const strikerStatus = innings.current_batsmen.find((batsman) => batsman.batting.stricking_role === 1);
+        const strikerStatus = await Status.find({
+            _id: { $in: innings.current_batsmen },
+            'batting.stricking_role': 1
+        }).session(session);
         if (!strikerStatus) {
             httpError(next, new Error('Striker not found'), req, 400);
             await session.abortTransaction();
@@ -911,7 +929,7 @@ export const updateInnings = async (req, res, next) => {
                 const resolvedFielderId =
                     fielder_id instanceof mongoose.Types.ObjectId
                         ? fielder_id
-                        : mongoose.Types.ObjectId(fielder_id);
+                        : new mongoose.Types.ObjectId(String(fielder_id));
 
                 // Validate dismissal_type
                 const validTypes = ['caught', 'stumped'];
@@ -1032,8 +1050,15 @@ export const updateInnings = async (req, res, next) => {
         } else {
             // Handle strike rotation based on runs
             if (ballOutcome.ball_counts && ballOutcome.runs % 2 !== 0) {
-                innings.current_batsmen.forEach((batsman) => {
+                // Fetch the current batsmen's status using their IDs from innings.current_batsmen
+                const batsmenStatuses = await Status.find({
+                    _id: { $in: innings.current_batsmen }
+                }).session(session);  // Ensure session is used for transaction consistency
+
+                // Iterate over the batsmen and toggle the stricking_role
+                batsmenStatuses.forEach((batsman) => {
                     const newRole = batsman.batting.stricking_role === 1 ? 2 : 1;
+
                     bulkOps.push({
                         updateOne: {
                             filter: { _id: batsman._id },
@@ -1042,10 +1067,17 @@ export const updateInnings = async (req, res, next) => {
                     });
                 });
             }
+
 
             // Handle strike rotation at the end of the over
             if (ballOutcome.ball_counts && innings.score.balls % 6 === 0) {
-                innings.current_batsmen.forEach((batsman) => {
+                // Fetch the current batsmen's status using their IDs from innings.current_batsmen
+                const batsmenStatuses = await Status.find({
+                    _id: { $in: innings.current_batsmen }
+                }).session(session);  // Ensure session is used for transaction consistency
+
+                // Iterate over the batsmen and toggle the stricking_role
+                batsmenStatuses.forEach((batsman) => {
                     const newRole = batsman.batting.stricking_role === 1 ? 2 : 1;
                     bulkOps.push({
                         updateOne: {
@@ -1054,28 +1086,8 @@ export const updateInnings = async (req, res, next) => {
                         },
                     });
                 });
-
-                // Check if target is achieved in the second innings
-                if (innings.innings_number === 2 && match.target_runs) {
-                    if (innings.score.runs >= match.target_runs) {
-                        innings.status = 'completed';
-                        match.winner = match.batting_team_id;
-
-                        innings.endTime = new Date();
-                        match.status = 'completed';
-                        match.endTime = new Date();
-
-                        await match.save({ session });
-
-                        innings.commentary.push({
-                            over: Math.floor(innings.score.balls / 6) + 1,
-                            ball: innings.score.balls % 6 || 6,
-                            description: `${match.batting_team_id} has reached the target and wins the match!`,
-                            timestamp: new Date(),
-                        });
-                    }
-                }
             }
+
         }
 
         // Check for match completion conditions
