@@ -40,7 +40,6 @@ function adminAuth(req, res, next) {
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return httpError(next, new Error('Unauthorized! Token Missing.'), req, 401);
         }
-
         // Extract the token
         const token = authHeader.split(' ')[1];
 
