@@ -116,6 +116,10 @@ export const getMatches = async (req, res, next) => {
             .skip(skip)
             .limit(parseInt(rows))
             .populate('innings')
+            .populate({
+                path: 'innings',
+                select: 'innings_number batting_team_id bowling_team_id score status '
+            })
             .populate('team_Aid', 'team_name')
             .populate('team_Bid', 'team_name')
             .lean()
@@ -149,12 +153,7 @@ export const getMatch = async (req, res, next) => {
                 select: 'team_name',
             })
             .populate({
-                path: 'innings',
-                populate: [
-                    { path: 'current_batsmen', populate: { path: 'player_id', select: 'name skill' } },
-                    { path: 'current_bowler', populate: { path: 'player_id', select: 'name skill' } },
-                    { path: 'wicket_keeper', populate: { path: 'player_id', select: 'name skill' } },
-                ],
+                path: 'innings'
             })
             .lean()
             .exec();
