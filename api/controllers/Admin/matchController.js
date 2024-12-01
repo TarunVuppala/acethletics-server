@@ -595,14 +595,15 @@ export const getMatchInnings = async (req, res, next) => {
         const { matchId } = req.params;
 
         const innings = await Match.findById(matchId)
-        .populate({
-            path: 'innings',
-            populate: [
-                { path: 'current_batsmen', populate: { path: 'player_id', select: 'name skill' } },
-                { path: 'current_bowler', populate: { path: 'player_id', select: 'name skill' } },
-            ]})
-        .session(session)
-        .exec();
+            .populate({
+                path: 'innings',
+                populate: [
+                    { path: 'current_batsmen', populate: { path: 'player_id', select: 'name skill' } },
+                    { path: 'current_bowler', populate: { path: 'player_id', select: 'name skill' } },
+                ]
+            })
+            .session(session)
+            .exec();
 
         if (!innings || innings.length === 0) {
             httpResponse(req, res, 404, responseMessage.NOT_FOUND('Innings'));
@@ -880,6 +881,8 @@ export const updateInnings = async (req, res, next) => {
                 update: { $inc: strikerUpdates },
             },
         });
+        let fielderStatus;
+        let nextBatsmanStatus;
 
         // Handle wicket
         if (ballOutcome.is_wicket) {
@@ -911,7 +914,7 @@ export const updateInnings = async (req, res, next) => {
                 }
 
                 // Check if fielderStatus exists
-                const fielderStatus = await Status.findOne({
+                fielderStatus = await Status.findOne({
                     player_id: fielder_id,
                     match_id: matchId,
                     innings_number: innings.innings_number,
@@ -962,7 +965,7 @@ export const updateInnings = async (req, res, next) => {
             // Add next batsman
             if (next_batsman_id) {
                 // Find or create the next batsman's Status document
-                let nextBatsmanStatus = await Status.findOne({
+                nextBatsmanStatus = await Status.findOne({
                     player_id: next_batsman_id,
                     match_id: matchId,
                     innings_number: innings.innings_number,
@@ -1184,6 +1187,13 @@ export const updateInnings = async (req, res, next) => {
         await session.commitTransaction();
         session.endSession();
 
+        //get status of players who are out
+        const outPlayers = innings.batting_order;
+        let outPlayersStatus;
+        for (let i = 0; i < outPlayers.length; i++) {
+            outPlayersStatus = await Status.find({ player_id: outPlayers[i].player_id }).session(session).exec();
+        }
+
         // Emit socket event if using sockets (optional)
         const io = req.app.get('io');
         if (io) {
@@ -1191,6 +1201,12 @@ export const updateInnings = async (req, res, next) => {
                 matchId: innings.match_id,
                 inningsId,
                 innings,
+                strikerStatus,
+                nonStrikerStatus,
+                nextBatsmanStatus,
+                bowlerStatus,
+                fielderStatus,
+                outPlayersStatus
             });
         }
 
@@ -1199,6 +1215,6 @@ export const updateInnings = async (req, res, next) => {
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        httpError(next, error, req, 500);g
+        httpError(next, error, req, 500); g
     }
 };
