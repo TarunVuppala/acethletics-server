@@ -479,7 +479,7 @@ export const startInnings = async (req, res, next) => {
 
         // Validate that the batting players are part of the batting team
         const battingTeamPlayerIds = battingTeam.players.map(player => player._id.toString());
-        logger.info('batting team player ids',{...battingTeamPlayerIds});
+        logger.info('batting team player ids', { ...battingTeamPlayerIds });
         const invalidBatsmen = batting_order.filter(playerId => !battingTeamPlayerIds.includes(playerId.toString()));
         if (invalidBatsmen.length > 0) {
             httpError(next, new Error(`Players ${invalidBatsmen.join(', ')} are not part of the batting team`), req, 400);
@@ -755,42 +755,53 @@ export const updateInnings = async (req, res, next) => {
         const bulkOps = [];
 
         // Update bowler's stats
-        if (bowler_id) {
-            // Fetch the bowler's Status document
-            const bowlerStatus = await Status.findOne({
-                player_id: bowler_id,
+        // Fetch the bowler's Status document
+        const bowlerStatus = await Status.findOne({
+            player_id: bowler_id ? bowler_id : innings.current_bowler.player_id,
+            match_id: matchId,
+            innings_number: innings.innings_number,
+        }).session(session).exec();
+
+        if (!bowlerStatus) {
+            const newBowlerStatus = new Status({
+                player_id: bowler_id || innings.current_bowler.player_id,
                 match_id: matchId,
                 innings_number: innings.innings_number,
-            }).session(session).exec();
-
-            if (!bowlerStatus) {
-                httpError(next, new Error('Bowler not found in Status documents.'), req, 400);
-                await session.abortTransaction();
-                session.endSession();
-                return;
-            }
-
-            // Update bowler's stats
-            const bowlerUpdates = {
-                'bowling.runs_conceded': ballOutcome.runs + (ballOutcome.extras || 0),
-                'bowling.overs_bowled': ballOutcome.ball_counts ? 1 / 6 : 0,
-                'bowling.wickets': ballOutcome.is_wicket ? 1 : 0,
-                'bowling.wides': outcome === 'wide' ? 1 : 0,
-                'bowling.no_balls': outcome === 'noball' ? 1 : 0,
-                'bowling.extras_conceded': ballOutcome.extras || 0,
-            };
-
-            if (ballOutcome.maidens) {
-                bowlerUpdates['bowling.maidens'] = 1;
-            }
-
-            bulkOps.push({
-                updateOne: {
-                    filter: { _id: bowlerStatus._id },
-                    update: { $inc: bowlerUpdates },
+                bowling: {
+                    runs_conceded: ballOutcome.runs + (ballOutcome.extras || 0),
+                    overs_bowled: ballOutcome.ball_counts ? 1 / 6 : 0,
+                    wickets: ballOutcome.is_wicket ? 1 : 0,
+                    wides: outcome === 'wide' ? 1 : 0,
+                    no_balls: outcome === 'noball' ? 1 : 0,
+                    extras_conceded: ballOutcome.extras || 0,
                 },
             });
+            await newBowlerStatus.save({ session });
+            innings.current_bowler = newBowlerStatus.player_id;
+            await innings.save({ session });
         }
+
+
+        // Update bowler's stats
+        const bowlerUpdates = {
+            'bowling.runs_conceded': ballOutcome.runs + (ballOutcome.extras || 0),
+            'bowling.overs_bowled': ballOutcome.ball_counts ? 1 / 6 : 0,
+            'bowling.wickets': ballOutcome.is_wicket ? 1 : 0,
+            'bowling.wides': outcome === 'wide' ? 1 : 0,
+            'bowling.no_balls': outcome === 'noball' ? 1 : 0,
+            'bowling.extras_conceded': ballOutcome.extras || 0,
+        };
+
+        if (ballOutcome.maidens) {
+            bowlerUpdates['bowling.maidens'] = 1;
+        }
+
+        bulkOps.push({
+            updateOne: {
+                filter: { _id: bowlerStatus._id },
+                update: { $inc: bowlerUpdates },
+            },
+        });
 
         // Identify the striker
         const strikerStatus = innings.current_batsmen.find((batsman) => batsman.batting.stricking_role === 1);
@@ -894,10 +905,32 @@ export const updateInnings = async (req, res, next) => {
                 }).session(session).exec();
 
                 if (!fielderStatus) {
-                    httpError(next, new Error('Fielder not found in Status documents.'), req, 400);
-                    await session.abortTransaction();
-                    session.endSession();
-                    return;
+                    const newFielderStatus = new Status({
+                        player_id: fielder_id,
+                        match_id: matchId,
+                        innings_number: innings.innings_number,
+                        fielding: {
+                            catches: dismissal_type === 'caught' ? 1 : 0,
+                            stumpings: dismissal_type === 'stumped' ? 1 : 0,
+                        },
+                    });
+                    await newFielderStatus.save({ session });
+                } else {
+                    const fielderUpdates = {};
+                    if (dismissal_type === 'caught') {
+                        fielderUpdates['fielding.catches'] = 1;
+                    } else if (dismissal_type === 'stumped') {
+                        fielderUpdates['fielding.stumpings'] = 1;
+                    }
+
+                    if (Object.keys(fielderUpdates).length > 0) {
+                        bulkOps.push({
+                            updateOne: {
+                                filter: { _id: fielderStatus._id },
+                                update: { $inc: fielderUpdates },
+                            },
+                        });
+                    }
                 }
 
                 const fielderUpdates = {};
@@ -908,7 +941,6 @@ export const updateInnings = async (req, res, next) => {
                     fielderUpdates['fielding.stumpings'] = 1;
                 }
                 // Add more dismissal types if needed
-
                 if (Object.keys(fielderUpdates).length > 0) {
                     bulkOps.push({
                         updateOne: {
