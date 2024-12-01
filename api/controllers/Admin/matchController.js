@@ -1186,18 +1186,81 @@ export const updateInnings = async (req, res, next) => {
         await session.commitTransaction();
         session.endSession();
 
-        // Emit socket event if using sockets (optional)
+        // Get the current striker and non-striker statuses
+        const currentStrikerStatus = batsmenStatuses.find(
+            (batsman) => batsman.batting.stricking_role === 1
+        );
+
+        const currentNonStrikerStatus = batsmenStatuses.find(
+            (batsman) => batsman.batting.stricking_role === 2
+        );
+
+        // Get the next batsman's status if available
+        let upcomingBatsmanStatus;
+        if (next_batsman_id) {
+            upcomingBatsmanStatus = await Status.findOne({
+                player_id: next_batsman_id,
+                match_id: matchId,
+                innings_number: innings.innings_number,
+            }).session(session);
+        }
+
+        // Get the bowler status
+        const currentBowlerStatus = await Status.findOne({
+            player_id: bowler_id,
+            match_id: matchId,
+            innings_number: innings.innings_number,
+        }).session(session);
+
+        // Get the fielder's status if available
+        let currentFielderStatus;
+        if (fielder_id) {
+            currentFielderStatus = await Status.findOne({
+                player_id: fielder_id,
+                match_id: matchId,
+                innings_number: innings.innings_number,
+            }).session(session);
+        }
+
+        // Get the players who are out and their statuses
+        const playersOut = innings.batting_order;
+        let playersOutStatus = [];
+        for (let i = 0; i < playersOut.length; i++) {
+            const playerStatus = await Status.findOne({
+                player_id: playersOut[i],
+                match_id: matchId,
+                innings_number: innings.innings_number,
+            }).session(session);
+            playersOutStatus.push(playerStatus);
+        }
+
+        // Emit the socket event with all player statuses
         const io = req.app.get('io');
         if (io) {
             io.emit('innings-updated', {
                 matchId: innings.match_id,
                 inningsId,
-                innings
+                innings,
+                currentStrikerStatus,
+                currentNonStrikerStatus,
+                upcomingBatsmanStatus,
+                currentBowlerStatus,
+                currentFielderStatus,
+                playersOutStatus
             });
         }
 
         // Respond with the updated innings
-        httpResponse(req, res, 200, responseMessage.UPDATED('Innings'), innings);
+        httpResponse(req, res, 200, responseMessage.UPDATED('Innings'), {
+            innings,
+            currentStrikerStatus,
+            currentNonStrikerStatus,
+            upcomingBatsmanStatus,
+            currentBowlerStatus,
+            currentFielderStatus,
+            playersOutStatus
+        });
+
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
