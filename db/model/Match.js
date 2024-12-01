@@ -70,13 +70,6 @@ const MatchSchema = new mongoose.Schema({
     },
 }, { timestamps: true });
 
-MatchSchema.pre('save', function (next) {
-    if (this.commentary.length > 20) {
-        this.commentary = this.commentary.slice(this.commentary.length - 20);
-    }
-    next();
-});
-
 const InningsSchema = new mongoose.Schema({
     match_id: {
         type: mongoose.Schema.Types.ObjectId,
@@ -148,6 +141,13 @@ const InningsSchema = new mongoose.Schema({
     },
     endTime: { type: Date, default: null },
 }, { timestamps: true });
+
+InningsSchema.pre('save', function (next) {
+    if (this.commentary.length > 20) {
+        this.commentary = this.commentary.slice(this.commentary.length - 20);
+    }
+    next();
+});
 
 InningsSchema.plugin(mongooseAutopopulate);
 MatchSchema.plugin(mongooseAutopopulate);
