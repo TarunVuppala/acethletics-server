@@ -4,7 +4,6 @@ import httpResponse from "../../../utils/httpResponse.js";
 import httpError from "../../../utils/httpError.js";
 import responseMessage from "../../../constant/responseMessage.js";
 import ballOutcomes from '../../../constant/ballOutcomes.js';
-import logger from '../../../utils/logger.js';
 
 /**
  * Create a new match within a tournament.
@@ -595,21 +594,15 @@ export const getMatchInnings = async (req, res, next) => {
     try {
         const { matchId } = req.params;
 
-        const innings = await Innings.find({ match_id: matchId })
-            .populate({
-                path: 'current_batsmen',
-                populate: { path: 'player_id', select: 'name skill' },
-            })
-            .populate({
-                path: 'current_bowler',
-                populate: { path: 'player_id', select: 'name skill' },
-            })
-            .populate({
-                path: 'wicket_keeper',
-                populate: { path: 'player_id', select: 'name skill' },
-            })
-            .lean()
-            .exec();
+        const innings = await Match.findById(matchId)
+        .populate({
+            path: 'innings',
+            populate: [
+                { path: 'current_batsmen', populate: { path: 'player_id', select: 'name skill' } },
+                { path: 'current_bowler', populate: { path: 'player_id', select: 'name skill' } },
+            ]})
+        .session(session)
+        .exec();
 
         if (!innings || innings.length === 0) {
             httpResponse(req, res, 404, responseMessage.NOT_FOUND('Innings'));
@@ -844,9 +837,6 @@ export const updateInnings = async (req, res, next) => {
             match_id: matchId,
             innings_number: innings.innings_number,
         }).session(session);
-        logger.info("batsmenStatuses", batsmenStatuses);
-        logger.info("Current Batsmen IDs:", innings.current_batsmen);
-
 
         // Check if the striker and non-striker statuses exist
         const strikerStatus = batsmenStatuses.find(
@@ -968,7 +958,6 @@ export const updateInnings = async (req, res, next) => {
             const a = innings.current_batsmen.filter(
                 (batsman) => batsman !== strikerStatus.player_id.toString()
             );
-            logger.info("vnbfdkbfjkvxfbjkf", a);
 
             // Add next batsman
             if (next_batsman_id) {
@@ -1210,6 +1199,6 @@ export const updateInnings = async (req, res, next) => {
     } catch (error) {
         await session.abortTransaction();
         session.endSession();
-        httpError(next, error, req, 500);
+        httpError(next, error, req, 500);g
     }
 };
