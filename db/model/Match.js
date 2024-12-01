@@ -49,6 +49,11 @@ const MatchSchema = new mongoose.Schema({
             ref: 'Team',
             default: null,
         },
+        deferring: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Team',
+            default: null,
+        },
         elected_to: {
             type: String,
             enum: ['bat', 'bowl'],
@@ -99,17 +104,17 @@ const InningsSchema = new mongoose.Schema({
     },
     current_batsmen: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Status',
+        ref: 'Player',
         required: true,
     }],
     wicket_keeper: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Status',
+        ref: 'Player',
         required: true,
     },
     current_bowler: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Status',
+        ref: 'Player',
         required: true,
     },
     score: {
