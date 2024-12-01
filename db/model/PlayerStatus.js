@@ -68,7 +68,7 @@ const StatusSchema = new mongoose.Schema(
         trim: true,
         default: null,
       },
-      striking_role: {
+      stricking_role: {
         type: Number,
         enum: STRIKING_ROLE_ENUM,
         default: null, // 0: Out, 1: Striker, 2: Non-striker
