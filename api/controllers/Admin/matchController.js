@@ -756,11 +756,20 @@ export const updateInnings = async (req, res, next) => {
 
         // Update bowler's stats
         // Fetch the bowler's Status document
+        const bowlerId =
+            bowler_id instanceof mongoose.Types.ObjectId
+                ? bowler_id
+                : mongoose.Types.ObjectId(bowler_id || innings.current_bowler.player_id);
+
         const bowlerStatus = await Status.findOne({
-            player_id: bowler_id ? bowler_id : innings.current_bowler.player_id,
+            player_id: bowlerId,
             match_id: matchId,
             innings_number: innings.innings_number,
-        }).session(session).exec();
+        })
+            .session(session)
+            .exec();
+
+
 
         if (!bowlerStatus) {
             const newBowlerStatus = new Status({
@@ -898,15 +907,29 @@ export const updateInnings = async (req, res, next) => {
 
             // Update fielder's stats if applicable
             if (fielder_id && dismissal_type) {
+                // Resolve ObjectId for fielder_id
+                const resolvedFielderId =
+                    fielder_id instanceof mongoose.Types.ObjectId
+                        ? fielder_id
+                        : mongoose.Types.ObjectId(fielder_id);
+
+                // Validate dismissal_type
+                const validTypes = ['caught', 'stumped'];
+                if (!validTypes.includes(dismissal_type)) {
+                    throw new Error(`Invalid dismissal_type: ${dismissal_type}`);
+                }
+
+                // Check if fielderStatus exists
                 const fielderStatus = await Status.findOne({
-                    player_id: fielder_id,
+                    player_id: resolvedFielderId,
                     match_id: matchId,
                     innings_number: innings.innings_number,
                 }).session(session).exec();
 
                 if (!fielderStatus) {
+                    // Create a new status for the fielder
                     const newFielderStatus = new Status({
-                        player_id: fielder_id,
+                        player_id: resolvedFielderId,
                         match_id: matchId,
                         innings_number: innings.innings_number,
                         fielding: {
@@ -916,6 +939,7 @@ export const updateInnings = async (req, res, next) => {
                     });
                     await newFielderStatus.save({ session });
                 } else {
+                    // Prepare updates for existing fielderStatus
                     const fielderUpdates = {};
                     if (dismissal_type === 'caught') {
                         fielderUpdates['fielding.catches'] = 1;
@@ -924,6 +948,7 @@ export const updateInnings = async (req, res, next) => {
                     }
 
                     if (Object.keys(fielderUpdates).length > 0) {
+                        bulkOps = bulkOps || [];
                         bulkOps.push({
                             updateOne: {
                                 filter: { _id: fielderStatus._id },
@@ -931,23 +956,6 @@ export const updateInnings = async (req, res, next) => {
                             },
                         });
                     }
-                }
-
-                const fielderUpdates = {};
-
-                if (dismissal_type === 'caught') {
-                    fielderUpdates['fielding.catches'] = 1;
-                } else if (dismissal_type === 'stumped') {
-                    fielderUpdates['fielding.stumpings'] = 1;
-                }
-                // Add more dismissal types if needed
-                if (Object.keys(fielderUpdates).length > 0) {
-                    bulkOps.push({
-                        updateOne: {
-                            filter: { _id: fielderStatus._id },
-                            update: { $inc: fielderUpdates },
-                        },
-                    });
                 }
             }
 
