@@ -1186,26 +1186,13 @@ export const updateInnings = async (req, res, next) => {
         await session.commitTransaction();
         session.endSession();
 
-        //get status of players who are out
-        const outPlayers = innings.batting_order;
-        let outPlayersStatus;
-        for (let i = 0; i < outPlayers.length; i++) {
-            outPlayersStatus = await Status.find({ player_id: outPlayers[i].player_id }).session(session).exec();
-        }
-
         // Emit socket event if using sockets (optional)
         const io = req.app.get('io');
         if (io) {
             io.emit('innings-updated', {
                 matchId: innings.match_id,
                 inningsId,
-                innings,
-                strikerStatus,
-                nonStrikerStatus,
-                nextBatsmanStatus,
-                bowlerStatus,
-                fielderStatus,
-                outPlayersStatus
+                innings
             });
         }
 
