@@ -1184,7 +1184,6 @@ export const updateInnings = async (req, res, next) => {
 
         // Commit the transaction
         await session.commitTransaction();
-        session.endSession();
 
         // Get the current striker and non-striker statuses
         const currentStrikerStatus = batsmenStatuses.find(
@@ -1263,7 +1262,8 @@ export const updateInnings = async (req, res, next) => {
 
     } catch (error) {
         await session.abortTransaction();
+        httpError(next, error, req, 500);
+    } finally {
         session.endSession();
-        httpError(next, error, req, 500); g
     }
 };
