@@ -93,6 +93,18 @@ export const addPlayer = async (req, res, next) => {
                 return;
             }
 
+            // Check for duplicate player by 'player_name'
+            const exists = await CricketPlayer.findOne({ player_name });
+            if (exists) {
+                httpError(
+                    next,
+                    new Error(responseMessage.RESOURCE_ALREADY_EXISTS("Player", player_name)),
+                    req,
+                    400
+                );
+                return;
+            }
+
             // Create the player
             const newPlayer = await CricketPlayer.create({
                 player_name,
