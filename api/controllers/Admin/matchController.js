@@ -356,7 +356,7 @@ export const updateTossStatus = async (req, res, next) => {
         match.toss = {
             winner: tossWinnerId || randomDecision,
             elected_to: toss_election,
-            deferring: match.team_Aid === tossWinnerId ? match.team_Aid : match.team_Bid,
+            deferring: match.team_Aid === tossWinnerId ? match.team_Bid : match.team_Aid,
         };
         match.status = 'in_progress';
 
