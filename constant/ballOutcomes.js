@@ -57,7 +57,7 @@ const ballOutcomes = Object.freeze({
     ball_counts: false,
   }),
   noball: Object.freeze({
-    runs: 0,
+    runs: 1,
     extras: 1,
     is_wicket: false,
     description: 'No ball',
