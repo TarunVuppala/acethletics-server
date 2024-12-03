@@ -29,6 +29,7 @@ const SkillSchema = new mongoose.Schema(
                     'right-arm off-spin',
                     'left-arm orthodox',
                     'leg break',
+                    'other',
                 ],
                 required: function () {
                     return (
