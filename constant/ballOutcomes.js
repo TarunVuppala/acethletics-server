@@ -71,26 +71,19 @@ const ballOutcomes = Object.freeze({
     ball_counts: false,
   }),
   bye: Object.freeze({
-    runs: 1,
-    extras: 1,
+    runs: 0,
+    extras: 0,
     is_wicket: false,
     description: 'Bye run',
     ball_counts: true,
   }),
   leg_bye: Object.freeze({
-    runs: 1,
+    runs: 0,
     extras: 1,
     is_wicket: false,
     description: 'Leg bye run',
     ball_counts: true,
-  }),
-  custom: Object.freeze({
-    runs: 0, 
-    extras: 0, 
-    is_wicket: false, 
-    description: '', 
-    ball_counts: true, 
-  }),
+  })
 });
 
 export default ballOutcomes;

@@ -656,7 +656,7 @@ export const updateInnings = async (req, res, next) => {
             return;
         }
 
-        const ballOutcome = ballOutcomes[outcome] || customOutcome;
+        const ballOutcome = customOutcome || ballOutcomes[outcome];
 
         if (!ballOutcome) {
             httpError(next, new Error('Invalid or undefined outcome value.'), req, 400);
