@@ -11,6 +11,7 @@ const allowedBowlingStyles = [
     'right-arm off-spin',
     'left-arm orthodox',
     'leg break',
+    "other"
 ];
 
 /**
