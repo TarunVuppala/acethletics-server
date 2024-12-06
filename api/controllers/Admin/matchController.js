@@ -635,12 +635,12 @@ export const updateInnings = async (req, res, next) => {
         } = req.body;
 
         // Validate required fields
-        if (outcome === 'wicket' && !next_batsman_id) {
-            httpError(next, new Error('Next batsman ID and strike role must be provided when a wicket falls'), req, 400);
-            await session.abortTransaction();
-            session.endSession();
-            return;
-        }
+        // if (outcome === 'wicket' && !next_batsman_id) {
+        //     httpError(next, new Error('Next batsman ID and strike role must be provided when a wicket falls'), req, 400);
+        //     await session.abortTransaction();
+        //     session.endSession();
+        //     return;
+        // }
 
         if (next_batsman_strike_role && ![1, 2].includes(next_batsman_strike_role)) {
             httpError(next, new Error('Next batsman strike role must be 1 (striker) or 2 (non-striker)'), req, 400);
