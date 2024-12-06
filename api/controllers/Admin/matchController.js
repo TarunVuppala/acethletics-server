@@ -4,6 +4,7 @@ import httpResponse from "../../../utils/httpResponse.js";
 import httpError from "../../../utils/httpError.js";
 import responseMessage from "../../../constant/responseMessage.js";
 import ballOutcomes from '../../../constant/ballOutcomes.js';
+import { object } from 'joi';
 
 /**
  * Create a new match within a tournament.
@@ -354,8 +355,8 @@ export const updateTossStatus = async (req, res, next) => {
         }
 
         match.toss = {
-            winner: tossWinnerId || randomDecision,
             elected_to: toss_election,
+            winner: tossWinnerId || randomDecision,
             deferring: match.team_Aid === tossWinnerId ? match.team_Bid : match.team_Aid,
         };
         match.status = 'in_progress';
@@ -635,12 +636,12 @@ export const updateInnings = async (req, res, next) => {
         } = req.body;
 
         // Validate required fields
-        // if (outcome === 'wicket' && !next_batsman_id) {
-        //     httpError(next, new Error('Next batsman ID and strike role must be provided when a wicket falls'), req, 400);
-        //     await session.abortTransaction();
-        //     session.endSession();
-        //     return;
-        // }
+        if (outcome === 'wicket' && !next_batsman_id) {
+            httpError(next, new Error('Next batsman ID and strike role must be provided when a wicket falls'), req, 400);
+            await session.abortTransaction();
+            session.endSession();
+            return;
+        }
 
         if (next_batsman_strike_role && ![1, 2].includes(next_batsman_strike_role)) {
             httpError(next, new Error('Next batsman strike role must be 1 (striker) or 2 (non-striker)'), req, 400);
@@ -649,7 +650,7 @@ export const updateInnings = async (req, res, next) => {
             return;
         }
 
-        if (!outcome) {
+        if (!outcome || (customOutcome && typeof customOutcome !== object)) {
             httpError(next, new Error('Outcome is required and must be a string.'), req, 400);
             await session.abortTransaction();
             session.endSession();
@@ -718,7 +719,7 @@ export const updateInnings = async (req, res, next) => {
         innings.score.extras.total += ballOutcome.extras || 0;
 
         // Update specific extras based on outcome
-        switch (outcome) {
+        switch (outcome || customOutcome.type) {
             case 'wide':
                 innings.score.extras.wides += ballOutcome.extras;
                 break;
@@ -731,7 +732,6 @@ export const updateInnings = async (req, res, next) => {
             case 'leg_bye':
                 innings.score.extras.legByes += ballOutcome.extras;
                 break;
-            // Add other cases if needed
         }
 
         // Generate commentary based on outcome
@@ -820,10 +820,6 @@ export const updateInnings = async (req, res, next) => {
                 'bowling.extras_conceded': ballOutcome.extras || 0,
             };
 
-            if (ballOutcome.maidens) {
-                bowlerUpdates['bowling.maidens'] = 1;
-            }
-
             bulkOps.push({
                 updateOne: {
                     filter: { _id: bowlerStatus._id },
@@ -904,7 +900,7 @@ export const updateInnings = async (req, res, next) => {
             // Update fielder's stats if applicable
             if (fielder_id && dismissal_type) {
                 // Validate dismissal_type
-                const validTypes = ['caught', 'stumped'];
+                const validTypes = ['caught', 'stumped', 'run_out', 'lbw', 'hit_wicket', 'other'];
                 if (!validTypes.includes(dismissal_type)) {
                     httpError(next, new Error(`Invalid dismissal_type: ${dismissal_type}`), req, 400);
                     await session.abortTransaction();
@@ -957,19 +953,8 @@ export const updateInnings = async (req, res, next) => {
                 (batsman) => batsman !== strikerStatus.player_id.toString()
             );
 
-            const a = innings.current_batsmen.filter(
-                (batsman) => batsman !== strikerStatus.player_id.toString()
-            );
-
             // Add next batsman
             if (next_batsman_id) {
-                // Find or create the next batsman's Status document
-                nextBatsmanStatus = await Status.findOne({
-                    player_id: next_batsman_id,
-                    match_id: matchId,
-                    innings_number: innings.innings_number,
-                }).session(session).exec();
-
                 if (!nextBatsmanStatus) {
                     // Create a new Status document for the next batsman
                     nextBatsmanStatus = await Status.create([{
@@ -978,11 +963,7 @@ export const updateInnings = async (req, res, next) => {
                         innings_number: innings.innings_number,
                         batting: {
                             stricking_role: next_batsman_strike_role || strikerStatus.batting.stricking_role,
-                        },
-                        fielding: {
-                            catches: 0,
-                            stumpings: 0,
-                        },
+                        }
                     }], { session });
                 }
 
@@ -1185,53 +1166,53 @@ export const updateInnings = async (req, res, next) => {
         // Commit the transaction
         await session.commitTransaction();
 
-        // Get the current striker and non-striker statuses
-        const currentStrikerStatus = batsmenStatuses.find(
-            (batsman) => batsman.batting.stricking_role === 1
-        );
+        // // Get the current striker and non-striker statuses
+        // const currentStrikerStatus = batsmenStatuses.find(
+        //     (batsman) => batsman.batting.stricking_role === 1
+        // );
 
-        const currentNonStrikerStatus = batsmenStatuses.find(
-            (batsman) => batsman.batting.stricking_role === 2
-        );
+        // const currentNonStrikerStatus = batsmenStatuses.find(
+        //     (batsman) => batsman.batting.stricking_role === 2
+        // );
 
-        // Get the next batsman's status if available
-        let upcomingBatsmanStatus;
-        if (next_batsman_id) {
-            upcomingBatsmanStatus = await Status.findOne({
-                player_id: next_batsman_id,
-                match_id: matchId,
-                innings_number: innings.innings_number,
-            }).session(session);
-        }
+        // // Get the next batsman's status if available
+        // let upcomingBatsmanStatus;
+        // if (next_batsman_id) {
+        //     upcomingBatsmanStatus = await Status.findOne({
+        //         player_id: next_batsman_id,
+        //         match_id: matchId,
+        //         innings_number: innings.innings_number,
+        //     }).session(session);
+        // }
 
-        // Get the bowler status
-        const currentBowlerStatus = await Status.findOne({
-            player_id: bowler_id,
-            match_id: matchId,
-            innings_number: innings.innings_number,
-        }).session(session);
+        // // Get the bowler status
+        // const currentBowlerStatus = await Status.findOne({
+        //     player_id: bowler_id,
+        //     match_id: matchId,
+        //     innings_number: innings.innings_number,
+        // }).session(session);
 
-        // Get the fielder's status if available
-        let currentFielderStatus;
-        if (fielder_id) {
-            currentFielderStatus = await Status.findOne({
-                player_id: fielder_id,
-                match_id: matchId,
-                innings_number: innings.innings_number,
-            }).session(session);
-        }
+        // // Get the fielder's status if available
+        // let currentFielderStatus;
+        // if (fielder_id) {
+        //     currentFielderStatus = await Status.findOne({
+        //         player_id: fielder_id,
+        //         match_id: matchId,
+        //         innings_number: innings.innings_number,
+        //     }).session(session);
+        // }
 
-        // Get the players who are out and their statuses
-        const playersOut = innings.batting_order;
-        let playersOutStatus = [];
-        for (let i = 0; i < playersOut.length; i++) {
-            const playerStatus = await Status.findOne({
-                player_id: playersOut[i],
-                match_id: matchId,
-                innings_number: innings.innings_number,
-            }).session(session);
-            playersOutStatus.push(playerStatus);
-        }
+        // // Get the players who are out and their statuses
+        // const playersOut = innings.batting_order;
+        // let playersOutStatus = [];
+        // for (let i = 0; i < playersOut.length; i++) {
+        //     const playerStatus = await Status.findOne({
+        //         player_id: playersOut[i],
+        //         match_id: matchId,
+        //         innings_number: innings.innings_number,
+        //     }).session(session);
+        //     playersOutStatus.push(playerStatus);
+        // }
 
         // Emit the socket event with all player statuses
         const io = req.app.get('io');
@@ -1240,24 +1221,24 @@ export const updateInnings = async (req, res, next) => {
                 matchId: innings.match_id,
                 inningsId,
                 innings,
-                currentStrikerStatus,
-                currentNonStrikerStatus,
-                upcomingBatsmanStatus,
-                currentBowlerStatus,
-                currentFielderStatus,
-                playersOutStatus
+                // currentStrikerStatus,
+                // currentNonStrikerStatus,
+                // upcomingBatsmanStatus,
+                // currentBowlerStatus,
+                // currentFielderStatus,
+                // playersOutStatus
             });
         }
 
         // Respond with the updated innings
         httpResponse(req, res, 200, responseMessage.UPDATED('Innings'), {
             innings,
-            currentStrikerStatus,
-            currentNonStrikerStatus,
-            upcomingBatsmanStatus,
-            currentBowlerStatus,
-            currentFielderStatus,
-            playersOutStatus
+            // currentStrikerStatus,
+            // currentNonStrikerStatus,
+            // upcomingBatsmanStatus,
+            // currentBowlerStatus,
+            // currentFielderStatus,
+            // playersOutStatus
         });
 
     } catch (error) {
