@@ -649,7 +649,7 @@ export const updateInnings = async (req, res, next) => {
             return;
         }
 
-        if (!outcome || !customOutcome) {
+        if (!outcome) {
             httpError(next, new Error('Outcome is required and must be a string.'), req, 400);
             await session.abortTransaction();
             session.endSession();
