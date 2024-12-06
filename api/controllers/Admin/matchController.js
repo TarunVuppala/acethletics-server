@@ -631,7 +631,7 @@ export const updateInnings = async (req, res, next) => {
             dismissal_type,
             next_batsman_id,
             next_batsman_strike_role,
-            customOutcome,
+            customOutcome = null,
         } = req.body;
 
         // Validate required fields
@@ -649,7 +649,7 @@ export const updateInnings = async (req, res, next) => {
             return;
         }
 
-        if (!outcome || (customOutcome && typeof customOutcome !== "object")) {
+        if (!outcome) {
             httpError(next, new Error('Outcome is required and must be a string.'), req, 400);
             await session.abortTransaction();
             session.endSession();
