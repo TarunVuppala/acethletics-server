@@ -82,7 +82,7 @@ export const addPlayer = async (req, res, next) => {
 
             // Validate required fields
             if (!player_name || !department || !skill) {
-                httpError(next, new Error(responseMessage.MISSING_FIELDS), req, 400);
+                httpError(next, new Error(responseMessage.FIELD_INVALID), req, 400);
                 return;
             }
 
