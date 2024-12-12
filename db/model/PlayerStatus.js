@@ -32,7 +32,7 @@ const StatusSchema = new mongoose.Schema(
   {
     player_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'CricketPlayer', // Reference to 'CricketPlayer' model
+      ref: 'CricketPlayer',
       required: true,
       immutable: true,
       index: true,
@@ -50,7 +50,7 @@ const StatusSchema = new mongoose.Schema(
       type: Number,
       required: true,
       immutable: true,
-      enum: [1, 2], // Typically, a match has up to 2 innings
+      enum: [1, 2],
       index: true,
     },
     /**
@@ -101,12 +101,12 @@ const StatusSchema = new mongoose.Schema(
     dismissal: {
       bowler_when_out: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'CricketPlayer', // Reference to 'CricketPlayer' model
+        ref: 'CricketPlayer',
         default: null,
       },
       wicket_taker: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'CricketPlayer', // Reference to 'CricketPlayer' model
+        ref: 'CricketPlayer',
         default: null,
       },
       dismissal_type: {
@@ -160,9 +160,6 @@ StatusSchema.pre('save', function (next) {
   next();
 });
 
-/**
- * Model Creation
- */
 const Status = mongoose.models.Status || mongoose.model('Status', StatusSchema);
 
 export default Status;

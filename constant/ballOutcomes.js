@@ -154,7 +154,7 @@ const ballOutcomes = Object.freeze({
     ball_counts: true,
   }),
   leg_bye_plus_1: Object.freeze({
-    runs: 0,
+    runs: 1,
     extras: 1,
     is_wicket: false,
     description: '1 run leg bye',
