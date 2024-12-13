@@ -1,4 +1,4 @@
-import { CricketPlayer, Team, Tournament } from '../../../db/model/index.js';
+import { CricketPlayer, CricketTeam, CricketTournament } from '../../../db/model/index.js';
 
 import httpResponse from "../../../utils/httpResponse.js";
 import httpError from "../../../utils/httpError.js";
@@ -50,13 +50,13 @@ export const createTeam = async (req, res, next) => {
         }
 
         // Check if the team already exists
-        const exists = await Team.findOne({ team_name }).lean().exec();
+        const exists = await CricketTeam.findOne({ team_name }).lean().exec();
         if (exists) {
             return httpError(next, new Error(responseMessage.RESOURCE_ALREADY_EXISTS('Team')), req, 400);
         }
 
         // Fetch the tournament
-        const tournament = await Tournament.findById(tournamentId).select('teams').exec();
+        const tournament = await CricketTournament.findById(tournamentId).select('teams').exec();
         if (!tournament) {
             return httpError(next, new Error("Tournament not found"), req, 404);
         }
@@ -71,7 +71,7 @@ export const createTeam = async (req, res, next) => {
         }
 
         // Create the new team
-        const team = await Team.create({
+        const team = await CricketTeam.create({
             team_name,
             department,
             players: validPlayers.map(player => player._id), // Add valid player IDs to the team
@@ -95,7 +95,6 @@ export const createTeam = async (req, res, next) => {
         httpError(next, error, req, 500);
     }
 };
-
 
 /**
  * Retrieves a paginated list of teams.
@@ -133,7 +132,7 @@ export const getTeams = async (req, res, next) => {
         const rowsPerPage = Number(rows);
         const skip = (pageNumber - 1) * rowsPerPage;
 
-        const teams = await Team.find({
+        const teams = await CricketTeam.find({
             team_name: { $regex: name, $options: 'i' }
         })
             .sort({ team_name: 1 })
@@ -148,7 +147,6 @@ export const getTeams = async (req, res, next) => {
         httpError(next, error, req, 500);
     }
 };
-
 
 /**
  * Retrieves a specific team by ID.
@@ -179,7 +177,7 @@ export const getTeam = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        const team = await Team.findById(id).
+        const team = await CricketTeam.findById(id).
             populate('players')
             .lean()
             .exec();
@@ -227,7 +225,7 @@ export const updateTeam = async (req, res, next) => {
         const { id } = req.params;
         const { team_name, department, players } = req.body;
 
-        const team = await Team.findById(id).lean().exec();
+        const team = await CricketTeam.findById(id).lean().exec();
         if (!team) {
             return httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Team')), req, 404);
         }
@@ -240,7 +238,7 @@ export const updateTeam = async (req, res, next) => {
             }
         }
 
-        const updatedTeam = await Team.findByIdAndUpdate(
+        const updatedTeam = await CricketTeam.findByIdAndUpdate(
             id,
             {
                 team_name: team_name || team.team_name,
@@ -255,7 +253,6 @@ export const updateTeam = async (req, res, next) => {
         httpError(next, error, req, 500);
     }
 };
-
 
 /**
  * Deletes a team by ID.
@@ -282,7 +279,7 @@ export const deleteTeam = async (req, res, next) => {
     try {
         const { id } = req.params;
 
-        const team = await Team.findByIdAndDelete(id).lean().exec();
+        const team = await CricketTeam.findByIdAndDelete(id).lean().exec();
         if (!team) {
             return httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Team')), req, 404);
         }

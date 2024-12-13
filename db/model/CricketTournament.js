@@ -45,7 +45,7 @@ const StatsSchema = new mongoose.Schema(
 const PointTableSchema = new mongoose.Schema({
     team: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Team',
+        ref: 'CricketTeam',
     },
     points: { type: Number, default: 0, min: 0 },
     matches_played: { type: Number, default: 0, min: 0 },
@@ -57,55 +57,54 @@ const PointTableSchema = new mongoose.Schema({
     { _id: false }
 );
 
-const TournamentSchema = new mongoose.Schema(
-    {
-        name: {
-            type: String,
-            required: true,
-            trim: true,
-            immutable: true,
-            index: true,
-        },
-        startDate: {
-            type: Date,
-            required: true,
-            immutable: true
-        },
-        endDate: {
-            type: Date,
-            required: true
-        },
-        stats: {
-            type: StatsSchema,
-            default: {}
-        },
-        location:{
-            type: String,
-            required: true
-        },
-        point_table: {
-            type: [PointTableSchema],
-            default: []
-        },
-        teams: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'Team',
-            },
-        ],
-        matches: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'Match',
-            },
-        ],
+const CricketTournamentSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true,
+        trim: true,
+        immutable: true,
+        index: true,
     },
+    startDate: {
+        type: Date,
+        required: true,
+        immutable: true
+    },
+    endDate: {
+        type: Date,
+        required: true
+    },
+    stats: {
+        type: StatsSchema,
+        default: {}
+    },
+    location: {
+        type: String,
+        required: true
+    },
+    point_table: {
+        type: [PointTableSchema],
+        default: []
+    },
+    teams: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'CricketTeam',
+        },
+    ],
+    matches: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'CricketMatch',
+        },
+    ],
+},
     { timestamps: true }
 );
 
 // Indexes
-TournamentSchema.index({ name: 1 });
+CricketTournamentSchema.index({ name: 1 });
 
-const Tournament = mongoose.model('Tournament', TournamentSchema);
+const CricketTournament = mongoose.model('CricketTournament', CricketTournamentSchema);
 
-export default Tournament;
+export default CricketTournament;

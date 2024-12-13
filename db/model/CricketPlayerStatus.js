@@ -28,7 +28,7 @@ const DISMISSAL_TYPE_ENUM = [
  * Status Schema:
  * Tracks the status and statistics of a player during a match innings.
  */
-const StatusSchema = new mongoose.Schema(
+const CricketPlayerStatusSchema = new mongoose.Schema(
   {
     player_id: {
       type: mongoose.Schema.Types.ObjectId,
@@ -40,7 +40,7 @@ const StatusSchema = new mongoose.Schema(
     },
     match_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Match',
+      ref: 'CricketMatch',
       required: true,
       immutable: true,
       index: true,
@@ -128,7 +128,7 @@ const StatusSchema = new mongoose.Schema(
  * Compound Unique Index:
  * Ensures that each player has only one status per match innings.
  */
-StatusSchema.index(
+CricketPlayerStatusSchema.index(
   { match_id: 1, innings_number: 1, player_id: 1 },
   { unique: true }
 );
@@ -137,12 +137,12 @@ StatusSchema.index(
  * Plugins:
  * - mongoose-autopopulate: Automatically populates referenced fields.
  */
-StatusSchema.plugin(mongooseAutopopulate);
+CricketPlayerStatusSchema.plugin(mongooseAutopopulate);
 
 /**
  * Middleware to Calculate Strike Rate and Economy Rate
  */
-StatusSchema.pre('save', function (next) {
+CricketPlayerStatusSchema.pre('save', function (next) {
   // Calculate Strike Rate
   if (this.batting.balls_faced > 0) {
     this.batting.strike_rate = (this.batting.runs / this.batting.balls_faced) * 100;
@@ -160,6 +160,6 @@ StatusSchema.pre('save', function (next) {
   next();
 });
 
-const Status = mongoose.models.Status || mongoose.model('Status', StatusSchema);
+const CricketPlayerStatus = mongoose.models.Status || mongoose.model('CricketPlayerStatus', CricketPlayerStatusSchema);
 
-export default Status;
+export default CricketPlayerStatus;

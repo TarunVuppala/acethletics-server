@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-import { Match, Innings, Status, Team, Tournament } from '../../../db/model/index.js';
+import { CricketMatch, Innings, CricketPlayerStatus, CricketTeam, CricketTournament } from '../../../db/model/index.js';
 
 import httpResponse from "../../../utils/httpResponse.js";
 import httpError from "../../../utils/httpError.js";
@@ -39,7 +39,7 @@ export const createMatch = async (req, res, next) => {
         }
 
         // Check if the tournament exists before creating the match
-        const tournament = await Tournament.findById(tournamentId).session(session).exec();
+        const tournament = await CricketTournament.findById(tournamentId).session(session).exec();
         if (!tournament) {
             httpError(next, new Error('Tournament not found'), req, 404);
             await session.abortTransaction();
@@ -49,8 +49,8 @@ export const createMatch = async (req, res, next) => {
 
         // Validate if both teams exist
         const [teamA, teamB] = await Promise.all([
-            Team.findById(team_Aid).session(session).exec(),
-            Team.findById(team_Bid).session(session).exec(),
+            CricketTeam.findById(team_Aid).session(session).exec(),
+            CricketTeam.findById(team_Bid).session(session).exec(),
         ]);
 
         if (!teamA || !teamB) {
@@ -74,7 +74,7 @@ export const createMatch = async (req, res, next) => {
         const parsedStartTime = new Date(`${year}-${month}-${day}T${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00Z`);
 
         // Create the match
-        const match = await Match.create([{
+        const match = await CricketMatch.create([{
             tournament_id: tournamentId,
             startTime: parsedStartTime,
             location,
@@ -114,7 +114,7 @@ export const getMatches = async (req, res, next) => {
         const { page = 1, rows = 10 } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(rows);
 
-        const matches = await Match.find({ tournament_id: tournamentId })
+        const matches = await CricketMatch.find({ tournament_id: tournamentId })
             .skip(skip)
             .limit(parseInt(rows))
             .populate({
@@ -144,7 +144,7 @@ export const getMatches = async (req, res, next) => {
 export const getMatch = async (req, res, next) => {
     try {
         const { matchId } = req.params;
-        const match = await Match.findById(matchId)
+        const match = await CricketMatch.findById(matchId)
             .populate({
                 path: 'team_Aid',
                 select: 'team_name',
@@ -181,7 +181,7 @@ export const updateMatch = async (req, res, next) => {
         const { matchId } = req.params;
         const updatedDetails = req.body;
 
-        const match = await Match.findById(matchId).session(session).exec();
+        const match = await CricketMatch.findById(matchId).session(session).exec();
         if (!match) {
             httpResponse(req, res, 404, responseMessage.NOT_FOUND('Match'));
             await session.abortTransaction();
@@ -240,7 +240,7 @@ export const deleteMatch = async (req, res, next) => {
             return;
         }
 
-        const match = await Match.findByIdAndDelete(matchId).session(session).exec();
+        const match = await CricketMatch.findByIdAndDelete(matchId).session(session).exec();
 
         if (!match) {
             httpResponse(req, res, 404, responseMessage.NOT_FOUND('Match'));
@@ -250,11 +250,11 @@ export const deleteMatch = async (req, res, next) => {
         }
 
         // Remove the match from the tournament's matches array
-        await Tournament.findByIdAndUpdate(match.tournament_id, { $pull: { matches: match._id } }).session(session).exec();
+        await CricketTournament.findByIdAndUpdate(match.tournament_id, { $pull: { matches: match._id } }).session(session).exec();
 
         // Delete related innings and status documents
         await Innings.deleteMany({ match_id: matchId }).session(session).exec();
-        await Status.deleteMany({ match_id: matchId }).session(session).exec();
+        await CricketPlayerStatus.deleteMany({ match_id: matchId }).session(session).exec();
 
         await session.commitTransaction();
         session.endSession();
@@ -292,7 +292,7 @@ export const updateMatchStatus = async (req, res, next) => {
             return;
         }
 
-        const match = await Match.findById(matchId).session(session).exec();
+        const match = await CricketMatch.findById(matchId).session(session).exec();
         if (!match) {
             httpResponse(req, res, 404, responseMessage.NOT_FOUND('Match'));
             await session.abortTransaction();
@@ -337,7 +337,7 @@ export const updateTossStatus = async (req, res, next) => {
             return;
         }
 
-        const match = await Match.findById(matchId).session(session).exec();
+        const match = await CricketMatch.findById(matchId).session(session).exec();
         if (!match) {
             httpResponse(req, res, 404, responseMessage.NOT_FOUND('Match'));
             await session.abortTransaction();
@@ -386,7 +386,7 @@ export const startInnings = async (req, res, next) => {
         } = req.body;
 
         // Fetch the match
-        const match = await Match.findById(matchId).session(session).exec();
+        const match = await CricketMatch.findById(matchId).session(session).exec();
         if (!match) {
             httpError(next, new Error('Match not found'), req, 404);
             await session.abortTransaction();
@@ -432,8 +432,8 @@ export const startInnings = async (req, res, next) => {
 
         // Fetch batting and bowling teams
         const [battingTeam, bowlingTeam] = await Promise.all([
-            Team.findById(batting_team_id).populate('players').session(session).exec(),
-            Team.findById(bowling_team_id).populate('players').session(session).exec(),
+            CricketTeam.findById(batting_team_id).populate('players').session(session).exec(),
+            CricketTeam.findById(bowling_team_id).populate('players').session(session).exec(),
         ]);
 
         if (!battingTeam || !bowlingTeam) {
@@ -490,7 +490,7 @@ export const startInnings = async (req, res, next) => {
 
         // Create Status documents for striker and non-striker
         const [strikerStatus, nonStrikerStatus] = await Promise.all([
-            Status.create([{
+            CricketPlayerStatus.create([{
                 player_id: current_batsmen[0],
                 match_id: matchId,
                 innings_number: innings_number,
@@ -498,7 +498,7 @@ export const startInnings = async (req, res, next) => {
                     stricking_role: 1, // 1 for striker
                 }
             }], { session }),
-            Status.create([{
+            CricketPlayerStatus.create([{
                 player_id: current_batsmen[1],
                 match_id: matchId,
                 innings_number: innings_number,
@@ -509,14 +509,14 @@ export const startInnings = async (req, res, next) => {
         ]);
 
         // Create Status document for wicket-keeper
-        const wicketKeeperStatus = await Status.create([{
+        const wicketKeeperStatus = await CricketPlayerStatus.create([{
             player_id: wicketKeeper._id,
             match_id: matchId,
             innings_number: innings_number,
         }], { session });
 
         // Create Status document for initial bowler
-        const initialBowlerStatus = await Status.create([{
+        const initialBowlerStatus = await CricketPlayerStatus.create([{
             player_id: initial_bowler_id,
             match_id: matchId,
             innings_number: innings_number,
@@ -591,7 +591,7 @@ export const getMatchInnings = async (req, res, next) => {
     try {
         const { matchId } = req.params;
 
-        const match = await Match.findById(matchId)
+        const match = await CricketMatch.findById(matchId)
             .populate({
                 path: 'innings',
                 populate: [
@@ -610,13 +610,13 @@ export const getMatchInnings = async (req, res, next) => {
 
         // Adjust based on how you define batting and bowling teams:
         const [battingTeam, bowlingTeam] = await Promise.all([
-            Team.findById(match.team_Aid).populate('players').session(session).exec(),
-            Team.findById(match.team_Bid).populate('players').session(session).exec(),
+            CricketTeam.findById(match.team_Aid).populate('players').session(session).exec(),
+            CricketTeam.findById(match.team_Bid).populate('players').session(session).exec(),
         ]);
 
         const battingPlayersStatus = await Promise.all(
             battingTeam.players.map((player) =>
-                Status.findOne({ player_id: player._id, match_id: matchId })
+                CricketPlayerStatus.findOne({ player_id: player._id, match_id: matchId })
                     .session(session)
                     .exec()
             )
@@ -624,7 +624,7 @@ export const getMatchInnings = async (req, res, next) => {
 
         const bowlingPlayersStatus = await Promise.all(
             bowlingTeam.players.map((player) =>
-                Status.findOne({ player_id: player._id, match_id: matchId })
+                CricketPlayerStatus.findOne({ player_id: player._id, match_id: matchId })
                     .session(session)
                     .exec()
             )
@@ -729,7 +729,7 @@ export const updateInnings = async (req, res, next) => {
         }
 
         // Fetch the match
-        const match = await Match.findById(matchId).session(session).exec();
+        const match = await CricketMatch.findById(matchId).session(session).exec();
         if (!match) {
             httpError(next, new Error('Match not found'), req, 404);
             await session.abortTransaction();
@@ -825,14 +825,14 @@ export const updateInnings = async (req, res, next) => {
         // Update bowler's stats
         const bowlerId = bowler_id || innings.current_bowler;
 
-        const bowlerStatus = await Status.findOne({
+        const bowlerStatus = await CricketPlayerStatus.findOne({
             player_id: bowlerId,
             match_id: matchId,
             innings_number: innings.innings_number,
         }).session(session).exec();
 
         if (!bowlerStatus) {
-            const newBowlerStatus = await Status.create([{
+            const newBowlerStatus = await CricketPlayerStatus.create([{
                 player_id: bowlerId,
                 match_id: matchId,
                 innings_number: innings.innings_number,
@@ -865,7 +865,7 @@ export const updateInnings = async (req, res, next) => {
             });
         }
 
-        const batsmenStatuses = await Status.find({
+        const batsmenStatuses = await CricketPlayerStatus.find({
             player_id: { $in: innings.current_batsmen },
             match_id: matchId,
             innings_number: innings.innings_number,
@@ -937,7 +937,7 @@ export const updateInnings = async (req, res, next) => {
             // Update fielder's stats if applicable
             if (fielder_id && dismissal_type) {
                 // Check if fielderStatus exists
-                fielderStatus = await Status.findOne({
+                fielderStatus = await CricketPlayerStatus.findOne({
                     player_id: fielder_id,
                     match_id: matchId,
                     innings_number: innings.innings_number,
@@ -983,7 +983,7 @@ export const updateInnings = async (req, res, next) => {
             // Add next batsman
             if (next_batsman_id) {
                 if (!nextBatsmanStatus) {
-                    nextBatsmanStatus = await Status.create([{
+                    nextBatsmanStatus = await CricketPlayerStatus.create([{
                         player_id: next_batsman_id,
                         match_id: matchId,
                         innings_number: innings.innings_number,
@@ -1181,7 +1181,7 @@ export const updateInnings = async (req, res, next) => {
 
         // Perform all bulk operations in a single bulkWrite
         if (bulkOps.length > 0) {
-            await Status.bulkWrite(bulkOps, { session });
+            await CricketPlayerStatus.bulkWrite(bulkOps, { session });
         }
 
         // Save the updated innings
@@ -1194,7 +1194,7 @@ export const updateInnings = async (req, res, next) => {
         const playersOut = innings.batting_order;
         let playersOutStatus = [];
         for (let i = 0; i < playersOut.length; i++) {
-            const playerStatus = await Status.findOne({
+            const playerStatus = await CricketPlayerStatus.findOne({
                 player_id: playersOut[i],
                 match_id: matchId,
                 innings_number: innings.innings_number,

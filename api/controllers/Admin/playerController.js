@@ -1,4 +1,4 @@
-import { CricketPlayer, Team } from "../../../db/model/index.js";
+import { CricketPlayer, CricketTeam } from "../../../db/model/index.js";
 
 import httpResponse from "../../../utils/httpResponse.js";
 import httpError from "../../../utils/httpError.js";
@@ -115,7 +115,7 @@ export const addPlayer = async (req, res, next) => {
 
             // If 'team_id' is provided, add the player to the team's player array
             if (team_id) {
-                const team = await Team.findById(team_id);
+                const team = await CricketTeam.findById(team_id);
                 if (!team) {
                     httpError(next, new Error(`Team with ID ${team_id} not found`), req, 404);
                     return;
@@ -363,7 +363,6 @@ export const putPlayer = async (req, res, next) => {
     //     httpError(next, error, req, 500);
     // }
 };
-
 
 /**
  * Partially updates a player's details.

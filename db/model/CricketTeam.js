@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const TeamSchema = new mongoose.Schema(
+const CricketTeamSchema = new mongoose.Schema(
   {
     team_name: {
       type: String,
@@ -24,8 +24,8 @@ const TeamSchema = new mongoose.Schema(
 );
 
 // Index
-TeamSchema.index({ team_name: 1 });
+CricketTeamSchema.index({ team_name: 1 });
 
-const Team = mongoose.model('Team', TeamSchema);
+const CricketTeam = mongoose.model('CricketTeam', CricketTeamSchema);
 
-export default Team;
+export default CricketTeam;

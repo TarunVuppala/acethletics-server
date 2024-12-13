@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const SkillSchema = new mongoose.Schema(
+const CricketPlayerSkillSchema = new mongoose.Schema(
     {
         roles: {
             type: [String],
@@ -42,7 +42,6 @@ const SkillSchema = new mongoose.Schema(
     { _id: false }
 );
 
-
 const CricketPlayerSchema = new mongoose.Schema(
     {
         player_name: {
@@ -57,9 +56,9 @@ const CricketPlayerSchema = new mongoose.Schema(
         },
         team_id: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Team',
+            ref: 'CricketTeam',
         },
-        skill: { type: SkillSchema },
+        skill: { type: CricketPlayerSkillSchema },
     },
     { timestamps: true }
 );

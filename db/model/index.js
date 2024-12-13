@@ -1,16 +1,19 @@
 import Admin from './Admin.js';
-import { Match, Innings } from './Match.js';
-import CricketPlayer from './Player.js';
-import Team from './Team.js';
-import Tournament from './Tournament.js';
-import Status from './PlayerStatus.js';
+import User from './User.js';
+
+import CricketTournament from './CricketTournament.js';
+import { CricketMatch, Innings } from './CricketMatch.js';
+import CricketPlayer from './CricketPlayer.js';
+import CricketTeam from './CricketTeam.js';
+import CricketPlayerStatus from './CricketPlayerStatus.js';
 
 export {
     Admin,
+    User,
     CricketPlayer,
-    Team,
-    Tournament,
-    Match,
+    CricketTeam,
     Innings,
-    Status
+    CricketMatch,
+    CricketTournament,
+    CricketPlayerStatus
 };

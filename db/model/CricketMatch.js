@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
 import mongooseAutopopulate from 'mongoose-autopopulate';
 
-const MatchSchema = new mongoose.Schema({
+const CricketMatchSchema = new mongoose.Schema({
     tournament_id: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Tournament',
+        ref: 'CricketTournament',
         required: true,
         index: true,
         autopopulate: { maxDepth: 1 },
@@ -19,12 +19,12 @@ const MatchSchema = new mongoose.Schema({
     },
     team_Aid: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Team',
+        ref: 'CricketTeam',
         required: true,
     },
     team_Bid: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Team',
+        ref: 'CricketTeam',
         required: true,
     },
     overs: {
@@ -46,12 +46,12 @@ const MatchSchema = new mongoose.Schema({
     toss: {
         winner: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Team',
+            ref: 'CricketTeam',
             default: null,
         },
         deferring: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Team',
+            ref: 'CricketTeam',
             default: null,
         },
         elected_to: {
@@ -66,7 +66,7 @@ const MatchSchema = new mongoose.Schema({
     },
     winner: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Team',
+        ref: 'CricketTeam',
         default: null,
     },
     endTime: {
@@ -78,7 +78,7 @@ const MatchSchema = new mongoose.Schema({
 const InningsSchema = new mongoose.Schema({
     match_id: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Match',
+        ref: 'CricketMatch',
         required: true,
         index: true,
     },
@@ -89,32 +89,32 @@ const InningsSchema = new mongoose.Schema({
     },
     batting_team_id: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Team',
+        ref: 'CricketTeam',
         required: true,
     },
     bowling_team_id: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Team',
+        ref: 'CricketTeam',
         required: true,
     },
     batting_order: {
         type: [mongoose.Schema.Types.ObjectId],
-        ref: 'Player',
+        ref: 'CricketPlayer',
         required: true,
     },
     current_batsmen: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Player',
+        ref: 'CricketPlayer',
         required: true,
     }],
     wicket_keeper: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Player',
+        ref: 'CricketPlayer',
         required: true,
     },
     current_bowler: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Player',
+        ref: 'CricketPlayer',
         required: true,
     },
     score: {
@@ -155,8 +155,8 @@ InningsSchema.pre('save', function (next) {
 });
 
 InningsSchema.plugin(mongooseAutopopulate);
-MatchSchema.plugin(mongooseAutopopulate);
+CricketMatchSchema.plugin(mongooseAutopopulate);
 
 const Innings = mongoose.model('Innings', InningsSchema);
-const Match = mongoose.model('Match', MatchSchema);
-export { Match, Innings };
+const CricketMatch = mongoose.model('CricketMatch', CricketMatchSchema);
+export { CricketMatch, Innings };

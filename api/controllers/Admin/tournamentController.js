@@ -5,12 +5,11 @@
  * managing teams, handling points tables, and statistics.
  */
 
-import { Team, Tournament } from '../../../db/model/index.js';
+import { CricketTeam, CricketTournament } from '../../../db/model/index.js';
 import httpResponse from "../../../utils/httpResponse.js";
 import httpError from "../../../utils/httpError.js";
 import responseMessage from "../../../constant/responseMessage.js";
 import validateAndSortPointTable from '../../validator/pointstableValidator.js';
-import logger from '../../../utils/logger.js';
 
 /**
  * Creates a new tournament.
@@ -50,7 +49,7 @@ export const createTournament = async (req, res, next) => {
             return;
         }
 
-        const tournament = await Tournament.create({
+        const tournament = await CricketTournament.create({
             name,
             startDate: new Date(startDate),
             endDate: new Date(endDate),
@@ -90,7 +89,7 @@ export const getTournaments = async (req, res, next) => {
         const query = name ? { name: new RegExp(name, 'i') } : {};
         const skip = (page - 1) * rows;
 
-        const tournaments = await Tournament.find(query)
+        const tournaments = await CricketTournament.find(query)
             .skip(skip)
             .limit(rows)
             .lean()
@@ -124,7 +123,7 @@ export const getTournament = async (req, res, next) => {
     try {
         const { tournamentId } = req.params;
 
-        const tournament = await Tournament.findById(tournamentId)
+        const tournament = await CricketTournament.findById(tournamentId)
             .populate('teams')
             .populate('matches')
             .lean()
@@ -169,7 +168,7 @@ export const updateTournament = async (req, res, next) => {
         const { tournamentId } = req.params;
         const updateData = req.body;
 
-        const updatedTournament = await Tournament.findByIdAndUpdate(tournamentId, updateData, { new: true, runValidators: true }).exec();
+        const updatedTournament = await CricketTournament.findByIdAndUpdate(tournamentId, updateData, { new: true, runValidators: true }).exec();
 
         if (!updatedTournament) {
             httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Tournament')), req, 404);
@@ -204,7 +203,7 @@ export const deleteTournament = async (req, res, next) => {
     try {
         const { tournamentId } = req.params;
 
-        const deletedTournament = await Tournament.findByIdAndDelete(tournamentId).exec();
+        const deletedTournament = await CricketTournament.findByIdAndDelete(tournamentId).exec();
 
         if (!deletedTournament) {
             httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Tournament')), req, 404);
@@ -256,13 +255,13 @@ export const addTeamsToTournament = async (req, res, next) => {
         }
 
         // Ensure all provided team IDs exist in the database
-        const validTeams = await Team.find({ _id: { $in: team_ids } }).lean().exec();
+        const validTeams = await CricketTeam.find({ _id: { $in: team_ids } }).lean().exec();
         if (validTeams.length !== team_ids.length) {
             return httpError(next, new Error("One or more team IDs are invalid"), req, 400);
         }
 
         // Fetch the tournament
-        const tournament = await Tournament.findById(tournamentId).exec();
+        const tournament = await CricketTournament.findById(tournamentId).exec();
         if (!tournament) {
             return httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Tournament')), req, 404);
         }
@@ -281,7 +280,6 @@ export const addTeamsToTournament = async (req, res, next) => {
         httpError(next, error, req, 500);
     }
 };
-
 
 /**
  * Removes a team from a tournament.
@@ -308,7 +306,7 @@ export const removeTeamFromTournament = async (req, res, next) => {
         const { tournamentId } = req.params;
         const { teamId } = req.body;
 
-        const tournament = await Tournament.findById(tournamentId).exec();
+        const tournament = await CricketTournament.findById(tournamentId).exec();
         if (!tournament) {
             httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Tournament')), req, 404);
             return;
@@ -351,7 +349,7 @@ export const getTeamsInTournament = async (req, res, next) => {
     try {
         const { tournamentId } = req.params;
 
-        const tournament = await Tournament.findById(tournamentId).populate('teams').lean().exec();
+        const tournament = await CricketTournament.findById(tournamentId).populate('teams').lean().exec();
         if (!tournament) {
             httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Tournament')), req, 404);
             return
@@ -395,7 +393,7 @@ export const updatePointsTable = async (req, res, next) => {
         const { point_table } = req.body;
 
         // Fetch the tournament document by ID
-        const tournament = await Tournament.findById(tournamentId).exec();
+        const tournament = await CricketTournament.findById(tournamentId).exec();
         if (!tournament) {
             httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Tournament')), req, 404);
             return;
@@ -484,7 +482,7 @@ export const updateTeamPoints = async (req, res, next) => {
         const { point_table } = req.body; // Points data from the request body
 
         // Fetch the tournament document
-        const tournament = await Tournament.findById(tournamentId).exec();
+        const tournament = await CricketTournament.findById(tournamentId).exec();
 
         if (!tournament) {
             return httpError(next, new Error('Tournament not found'), req, 404);
@@ -558,7 +556,7 @@ export const getPointsTable = async (req, res, next) => {
     try {
         const { tournamentId } = req.params;
 
-        const tournament = await Tournament.findById(tournamentId)
+        const tournament = await CricketTournament.findById(tournamentId)
             .select('point_table')
             .lean()
             .exec();
@@ -604,7 +602,7 @@ export const getStats = async (req, res, next) => {
     try {
         const { tournamentId } = req.params;
 
-        const tournament = await Tournament.findById(tournamentId)
+        const tournament = await CricketTournament.findById(tournamentId)
             .select('stats')
             .lean()
             .exec();
@@ -658,7 +656,7 @@ export const updateStats = async (req, res, next) => {
             return;
         }
 
-        const tournament = await Tournament.findById(tournamentId).exec();
+        const tournament = await CricketTournament.findById(tournamentId).exec();
         if (!tournament) {
             httpError(next, new Error(responseMessage.RESOURCE_NOT_FOUND('Tournament')), req, 404);
             return;
