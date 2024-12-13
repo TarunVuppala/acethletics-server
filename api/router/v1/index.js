@@ -3,8 +3,8 @@
  * 
  * This router combines the routes for admin-related operations and player-related operations.
  * It acts as a central point for routing API requests to their respective modules.
- *
- * @module MainRouter
+*
+* @module MainRouter
  */
 
 import express from 'express';
@@ -12,8 +12,11 @@ import express from 'express';
 import adminRouter from './Admin/adminRouter.js';
 import playerRouter from './Admin/playerRouter.js';
 import tournamentRouter from './Admin/tournamentRouter.js';
+import userRouter from './User/userRouter.js';
 
 const router = express.Router();
+
+router.use('/', userRouter);
 
 /**
  * Admin Router.
@@ -39,6 +42,6 @@ router.use('/admin', adminRouter);
  */
 router.use('/player', playerRouter);
 
-router.use('/tournament', tournamentRouter)
+router.use('/tournament', tournamentRouter);
 
 export default router;

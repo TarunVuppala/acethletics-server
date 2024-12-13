@@ -83,10 +83,9 @@ export const adminLogin = async (req, res, next) => {
             token
         });
     } catch (error) {
-            httpError(next, error, req, 500);
+        httpError(next, error, req, 500);
     }
 };
-
 
 /**
  * Controller for handling admin logout.
@@ -124,7 +123,6 @@ export const adminLogout = async (req, res, next) => {
         httpError(next, error, req, 500);
     }
 };
-
 
 /**
  * Controller for handling admin registration.
