@@ -1,9 +1,9 @@
 import express from 'express';
 
-import httpResponse from "../../../../utils/httpResponse";
+import httpResponse from "../../../../utils/httpResponse.js";
 
-import userAuth from "../../../../middleware/userAuth";
-import { userLogin, userSignup } from "../../../controllers/User/userController";
+import userAuth from "../../../../middleware/userAuth.js";
+import { userLogin, userSignup } from "../../../controllers/User/userController.js";
 
 const router = express.Router();
 
